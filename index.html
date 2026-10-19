@@ -1,886 +1,1054 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Wordle Latino</title>
-<style>
-  :root {
-    /* Paleta: verde pastel + celeste sobre azul pizarra profundo */
-    --bg: #0f1a24;
-    --bg-glow: #1b3045;
-    --surface: #172736;
-    --text: #eaf6ff;
-    --muted: #8fa6ba;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wordle Latino</title>
+    <style>
+        :root {
+            /* Paleta: verde pastel + celeste sobre azul pizarra profundo */
+            --bg: #0f1a24;
+            --bg-glow: #1b3045;
+            --surface: #172736;
+            --text: #eaf6ff;
+            --muted: #8fa6ba;
 
-    --green: #9ee6be;        /* verde pastel */
-    --green-dark: #12351f;   /* texto sobre verde */
-    --sky: #8fd3f4;          /* celeste */
-    --sky-dark: #0d2b3e;     /* texto sobre celeste */
+            --green: #9ee6be;
+            /* verde pastel */
+            --green-dark: #12351f;
+            /* texto sobre verde */
+            --sky: #8fd3f4;
+            /* celeste */
+            --sky-dark: #0d2b3e;
+            /* texto sobre celeste */
 
-    --tile-border: #2f4559;
-    --tile-border-filled: #8fd3f4;
-    --key: #35506a;
-    --absent: #22313f;
-    --absent-text: #7f93a6;
-    --danger: #f6b5b5;
-    --danger-dark: #4a1414;
+            --tile-border: #2f4559;
+            --tile-border-filled: #8fd3f4;
+            --key: #35506a;
+            --absent: #22313f;
+            --absent-text: #7f93a6;
+            --danger: #f6b5b5;
+            --danger-dark: #4a1414;
 
-    --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100vh - 340px) / 6.6));
-  }
-  @supports (height: 100dvh) {
-    :root { --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100dvh - 340px) / 6.6)); }
-  }
+            --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100vh - 340px) / 6.6));
+        }
 
-  * { box-sizing: border-box; }
+        @supports (height: 100dvh) {
+            :root {
+                --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100dvh - 340px) / 6.6));
+            }
+        }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-    overscroll-behavior: none;
-  }
+        * {
+            box-sizing: border-box;
+        }
 
-  body {
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: radial-gradient(circle at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
-  }
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
+        }
 
-  /* ---------- Encabezado ---------- */
-  header {
-    text-align: center;
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid rgba(143, 211, 244, 0.18);
-  }
-  header h1 {
-    margin: 0;
-    font-size: clamp(1.5rem, 6vw, 2.2rem);
-    letter-spacing: 0.15em;
-    font-weight: 800;
-    background: linear-gradient(90deg, var(--green), var(--sky));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  #plays {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 6px;
-    margin-top: 4px;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--sky);
-    opacity: 0.6;
-  }
-  .dot.on {
-    background: var(--green);
-    border-color: var(--green);
-    opacity: 1;
-    box-shadow: 0 0 6px rgba(158, 230, 190, 0.6);
-  }
-  #plays .label { margin-left: 4px; }
+        body {
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
+        }
 
-  /* ---------- Tablero ---------- */
-  main {
-    flex: 1 1 auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    min-height: 0;
-  }
-  .board { display: grid; gap: 6px; }
-  .row {
-    display: grid;
-    grid-template-columns: repeat(5, var(--tile));
-    gap: 6px;
-  }
-  .row.shake { animation: shake .45s; }
+        /* ---------- Encabezado ---------- */
+        header {
+            text-align: center;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid rgba(143, 211, 244, 0.18);
+        }
 
-  .tile {
-    width: var(--tile);
-    height: var(--tile);
-    border: 2px solid var(--tile-border);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(var(--tile) * 0.55);
-    font-weight: 800;
-    user-select: none;
-    background: rgba(255, 255, 255, 0.02);
-  }
-  .tile.filled {
-    border-color: var(--tile-border-filled);
-    box-shadow: 0 0 8px rgba(143, 211, 244, 0.25);
-    animation: pop .1s;
-  }
-  .tile.flip { animation: flip .5s ease forwards; }
-  .tile.correct {
-    background: var(--green);
-    border-color: var(--green);
-    color: var(--green-dark);
-    box-shadow: 0 0 10px rgba(158, 230, 190, 0.35);
-  }
-  .tile.present {
-    background: var(--sky);
-    border-color: var(--sky);
-    color: var(--sky-dark);
-    box-shadow: 0 0 10px rgba(143, 211, 244, 0.3);
-  }
-  .tile.absent {
-    background: var(--absent);
-    border-color: var(--absent);
-    color: var(--absent-text);
-    box-shadow: none;
-  }
+        header h1 {
+            margin: 0;
+            font-size: clamp(1.5rem, 6vw, 2.2rem);
+            letter-spacing: 0.15em;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--green), var(--sky));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
 
-  @keyframes pop { 50% { transform: scale(1.12); } }
-  @keyframes flip { 50% { transform: rotateX(90deg); } }
-  @keyframes shake {
-    10%, 90% { transform: translateX(-2px); }
-    20%, 80% { transform: translateX(4px); }
-    30%, 50%, 70% { transform: translateX(-6px); }
-    40%, 60% { transform: translateX(6px); }
-  }
+        #plays {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
 
-  /* ---------- Teclado ---------- */
-  #keyboard {
-    width: 100%;
-    max-width: 520px;
-    margin: 0 auto;
-    padding: 6px 6px calc(10px + env(safe-area-inset-bottom));
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .kb-row { display: flex; justify-content: center; gap: 5px; }
-  .key {
-    flex: 1 1 0;
-    max-width: 46px;
-    height: 56px;
-    border: none;
-    border-radius: 8px;
-    background: var(--key);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    user-select: none;
-    padding: 0;
-    transition: background-color .2s, color .2s, transform .05s;
-  }
-  .key.wide { flex: 1.6 1 0; max-width: 74px; font-size: 0.75rem; }
-  .key.enter {
-    background: linear-gradient(135deg, var(--green), var(--sky));
-    color: var(--sky-dark);
-  }
-  .key.correct { background: var(--green); color: var(--green-dark); }
-  .key.present { background: var(--sky); color: var(--sky-dark); }
-  .key.absent  { background: var(--absent); color: var(--absent-text); }
-  .key:active { transform: scale(0.95); }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid var(--sky);
+            opacity: 0.6;
+        }
 
-  /* ---------- Mensajes ---------- */
-  #toast {
-    position: fixed;
-    top: 90px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--sky);
-    color: var(--sky-dark);
-    font-weight: 700;
-    padding: 10px 16px;
-    border-radius: 8px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .25s;
-    z-index: 30;
-    white-space: nowrap;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-  }
-  #toast.show { opacity: 1; }
+        .dot.on {
+            background: var(--green);
+            border-color: var(--green);
+            opacity: 1;
+            box-shadow: 0 0 6px rgba(158, 230, 190, 0.6);
+        }
 
-  #overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(5, 12, 18, 0.7);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 40;
-    padding: 16px;
-  }
-  #overlay.show { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid rgba(143, 211, 244, 0.3);
-    border-radius: 16px;
-    padding: 24px 22px;
-    width: 100%;
-    max-width: 340px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  }
-  .modal h2 { margin: 0; font-size: 1.6rem; }
-  .modal p { margin: 0; color: #cfe3f2; }
-  #countdown { color: var(--sky); font-weight: 600; min-height: 1.2em; }
-  .word-pill {
-    padding: 8px 16px;
-    border-radius: 10px;
-    font-weight: 800;
-    letter-spacing: 0.2em;
-    font-size: 1.2rem;
-  }
-  .word-pill.ok { background: var(--green); color: var(--green-dark); }
-  .word-pill.ko { background: var(--danger); color: var(--danger-dark); }
-  .modal button {
-    margin-top: 6px;
-    background: linear-gradient(135deg, var(--green), var(--sky));
-    color: var(--sky-dark);
-    border: none;
-    border-radius: 10px;
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 800;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .modal button:disabled {
-    background: #2c3d4e;
-    color: var(--muted);
-    cursor: not-allowed;
-  }
+        #plays .label {
+            margin-left: 4px;
+        }
 
-  @media (max-width: 400px) {
-    .key { height: 50px; font-size: 0.9rem; }
-    .kb-row { gap: 4px; }
-    .key.wide { font-size: 0.65rem; }
-  }
-  @media (max-height: 620px) {
-    .key { height: 42px; }
-  }
-</style>
+        /* ---------- Tablero ---------- */
+        main {
+            flex: 1 1 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            min-height: 0;
+        }
+
+        .board {
+            display: grid;
+            gap: 6px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, var(--tile));
+            gap: 6px;
+        }
+
+        .row.shake {
+            animation: shake .45s;
+        }
+
+        .tile {
+            width: var(--tile);
+            height: var(--tile);
+            border: 2px solid var(--tile-border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(var(--tile) * 0.55);
+            font-weight: 800;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tile.filled {
+            border-color: var(--tile-border-filled);
+            box-shadow: 0 0 8px rgba(143, 211, 244, 0.25);
+            animation: pop .1s;
+        }
+
+        .tile.flip {
+            animation: flip .5s ease forwards;
+        }
+
+        .tile.correct {
+            background: var(--green);
+            border-color: var(--green);
+            color: var(--green-dark);
+            box-shadow: 0 0 10px rgba(158, 230, 190, 0.35);
+        }
+
+        .tile.present {
+            background: var(--sky);
+            border-color: var(--sky);
+            color: var(--sky-dark);
+            box-shadow: 0 0 10px rgba(143, 211, 244, 0.3);
+        }
+
+        .tile.absent {
+            background: var(--absent);
+            border-color: var(--absent);
+            color: var(--absent-text);
+            box-shadow: none;
+        }
+
+        @keyframes pop {
+            50% {
+                transform: scale(1.12);
+            }
+        }
+
+        @keyframes flip {
+            50% {
+                transform: rotateX(90deg);
+            }
+        }
+
+        @keyframes shake {
+
+            10%,
+            90% {
+                transform: translateX(-2px);
+            }
+
+            20%,
+            80% {
+                transform: translateX(4px);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translateX(-6px);
+            }
+
+            40%,
+            60% {
+                transform: translateX(6px);
+            }
+        }
+
+        /* ---------- Teclado ---------- */
+        #keyboard {
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 6px 6px calc(10px + env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .kb-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .key {
+            flex: 1 1 0;
+            max-width: 46px;
+            height: 56px;
+            border: none;
+            border-radius: 8px;
+            background: var(--key);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+            padding: 0;
+            transition: background-color .2s, color .2s, transform .05s;
+        }
+
+        .key.wide {
+            flex: 1.6 1 0;
+            max-width: 74px;
+            font-size: 0.75rem;
+        }
+
+        .key.enter {
+            background: linear-gradient(135deg, var(--green), var(--sky));
+            color: var(--sky-dark);
+        }
+
+        .key.correct {
+            background: var(--green);
+            color: var(--green-dark);
+        }
+
+        .key.present {
+            background: var(--sky);
+            color: var(--sky-dark);
+        }
+
+        .key.absent {
+            background: var(--absent);
+            color: var(--absent-text);
+        }
+
+        .key:active {
+            transform: scale(0.95);
+        }
+
+        /* ---------- Mensajes ---------- */
+        #toast {
+            position: fixed;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: calc(100vw - 32px);
+            text-align: center;
+            background: var(--sky);
+            color: var(--sky-dark);
+            font-weight: 700;
+            padding: 10px 16px;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s;
+            z-index: 50;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 12, 18, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 40;
+            padding: 16px;
+        }
+
+        #overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid rgba(143, 211, 244, 0.3);
+            border-radius: 16px;
+            padding: 24px 22px;
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+
+        .modal p {
+            margin: 0;
+            color: #cfe3f2;
+        }
+
+        #countdown {
+            color: var(--sky);
+            font-weight: 600;
+            min-height: 1.2em;
+        }
+
+        .word-pill {
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            letter-spacing: 0.2em;
+            font-size: 1.2rem;
+        }
+
+        .word-pill.ok {
+            background: var(--green);
+            color: var(--green-dark);
+        }
+
+        .word-pill.ko {
+            background: var(--danger);
+            color: var(--danger-dark);
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .modal button {
+            background: linear-gradient(135deg, var(--green), var(--sky));
+            color: var(--sky-dark);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .modal button.btn-secondary {
+            background: transparent;
+            color: var(--sky);
+            border-color: var(--sky);
+        }
+
+        .modal button.btn-secondary:hover {
+            background: rgba(143, 211, 244, 0.12);
+        }
+
+        .modal button:disabled {
+            background: #2c3d4e;
+            color: var(--muted);
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 400px) {
+            .key {
+                height: 50px;
+                font-size: 0.9rem;
+            }
+
+            .kb-row {
+                gap: 4px;
+            }
+
+            .key.wide {
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-height: 620px) {
+            .key {
+                height: 42px;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-<header>
-  <h1>WORDLE</h1>
-  <div id="plays"></div>
-</header>
+    <header>
+        <h1>WORDLE</h1>
+        <div id="plays"></div>
+    </header>
 
-<main>
-  <div class="board" id="board"></div>
-</main>
+    <main>
+        <div class="board" id="board"></div>
+    </main>
 
-<div id="keyboard"></div>
-<div id="toast"></div>
+    <div id="keyboard"></div>
+    <div id="toast"></div>
 
-<div id="overlay">
-  <div class="modal">
-    <h2 id="result-title"></h2>
-    <p id="result-text"></p>
-    <span class="word-pill" id="result-word"></span>
-    <p id="countdown"></p>
-    <button id="restart">Jugar de nuevo</button>
-  </div>
-</div>
+    <div id="overlay">
+        <div class="modal">
+            <h2 id="result-title"></h2>
+            <p id="result-text"></p>
+            <span class="word-pill" id="result-word"></span>
+            <p id="countdown"></p>
+            <div class="modal-actions">
+                <button id="restart">Jugar de nuevo</button>
+                <button id="close-tab" class="btn-secondary">Cerrar pestaña</button>
+            </div>
+        </div>
+    </div>
 
-<script>
-  // ================== Configuración ==================
-  // Palabras secretas (5 letras, español latino). Cada partida elige una al azar
-  // y no repite ninguna de las últimas HISTORY_SIZE palabras que ya salieron.
-  const SECRET_WORDS = [
-    "ABEJA","AMIGO","ANGEL","ARBOL","ARENA","ARETE","ARROZ","ASADO","AVION","AYUDA",
-    "BAILE","BALDE","BANCO","BARCO","BESOS","BLUSA","BOLSA","BOTAS","BRAZO","BRISA",
-    "BROMA","BRUJA","BURRO","CABRA","CACAO","CALLE","CALOR","CAMPO","CANOA","CARNE",
-    "CARRO","CARTA","CEBRA","CERDO","CERRO","CHILE","CIELO","CIRCO","CLAVE","COLOR",
-    "CORAL","COSTA","CUATE","CUEVA","DANZA","DISCO","DULCE","ELOTE","ERIZO","FALDA",
-    "FERIA","FLACO","FRESA","FRUTA","FUEGO","GALLO","GATOS","GENTE","GLOBO","GORRA",
-    "GRUPO","GUSTO","HIELO","HOGAR","HOJAS","HORNO","HOTEL","HUEVO","HUMOR","ISLAS",
-    "JABON","JAULA","JOVEN","JUEGO","JUGOS","LAPIZ","LECHE","LIBRO","LIMON","LINDO",
-    "LLAVE","LUCHA","LUNAR","MADRE","MAGIA","MANGO","MANOS","MARCO","MAREA","METRO",
-    "MIEDO","MONTE","MOSCA","MOTOR","MUNDO","MUSEO","NARIZ","NIEVE","NOCHE","NORTE",
-    "NOVIA","NUBES","OLIVO","OREJA","OTOÑO","OVEJA","PADRE","PALTA","PAPAS","PAPEL",
-    "PATIO","PERRO","PIANO","PLATA","PLAYA","PLAZA","PLUMA","POLLO","PULPO","QUESO",
-    "RADIO","RATON","RELOJ","RISAS","RUEDA","SABOR","SALSA","SELVA","SILLA","SUEÑO",
-    "TACOS","TARDE","TECHO","TIGRE","TORRE","TORTA","TRAJE","TRIGO","VACAS","VALLE",
-    "VELAS","VERDE","VIAJE","VUELO","YEGUA","ZORRO"
-  ];
-  const WORD_LENGTH = 5;
-  const MAX_ATTEMPTS = 6;
-  const FLIP_DELAY = 250;
+    <script>
+        // ================== Configuración ==================
+        // Palabras secretas (5 letras, español latino). Cada partida elige una al azar
+        // y no repite ninguna de las últimas HISTORY_SIZE palabras que ya salieron.
+        const SECRET_WORDS = [
+            "ABEJA", "AMIGO", "ANGEL", "ARBOL", "ARENA", "ARETE", "ARROZ", "ASADO", "AVION", "AYUDA",
+            "BAILE", "BALDE", "BANCO", "BARCO", "BESOS", "BLUSA", "BOLSA", "BOTAS", "BRAZO", "BRISA",
+            "BROMA", "BRUJA", "BURRO", "CABRA", "CACAO", "CALLE", "CALOR", "CAMPO", "CANOA", "CARNE",
+            "CARRO", "CARTA", "CEBRA", "CERDO", "CERRO", "CHILE", "CIELO", "CIRCO", "CLAVE", "COLOR",
+            "CORAL", "COSTA", "CUATE", "CUEVA", "DANZA", "DISCO", "DULCE", "ELOTE", "ERIZO", "FALDA",
+            "FERIA", "FLACO", "FRESA", "FRUTA", "FUEGO", "GALLO", "GATOS", "GENTE", "GLOBO", "GORRA",
+            "GRUPO", "GUSTO", "HIELO", "HOGAR", "HOJAS", "HORNO", "HOTEL", "HUEVO", "HUMOR", "ISLAS",
+            "JABON", "JAULA", "JOVEN", "JUEGO", "JUGOS", "LAPIZ", "LECHE", "LIBRO", "LIMON", "LINDO",
+            "LLAVE", "LUCHA", "LUNAR", "MADRE", "MAGIA", "MANGO", "MANOS", "MARCO", "MAREA", "METRO",
+            "MIEDO", "MONTE", "MOSCA", "MOTOR", "MUNDO", "MUSEO", "NARIZ", "NIEVE", "NOCHE", "NORTE",
+            "NOVIA", "NUBES", "OLIVO", "OREJA", "OTOÑO", "OVEJA", "PADRE", "PALTA", "PAPAS", "PAPEL",
+            "PATIO", "PERRO", "PIANO", "PLATA", "PLAYA", "PLAZA", "PLUMA", "POLLO", "PULPO", "QUESO",
+            "RADIO", "RATON", "RELOJ", "RISAS", "RUEDA", "SABOR", "SALSA", "SELVA", "SILLA", "SUEÑO",
+            "TACOS", "TARDE", "TECHO", "TIGRE", "TORRE", "TORTA", "TRAJE", "TRIGO", "VACAS", "VALLE",
+            "VELAS", "VERDE", "VIAJE", "VUELO", "YEGUA", "ZORRO"
+        ];
+        const WORD_LENGTH = 5;
+        const MAX_ATTEMPTS = 6;
+        const FLIP_DELAY = 250;
 
-  // Cuántas palabras recientes se recuerdan para no repetirlas
-  const HISTORY_SIZE = Math.max(1, Math.min(60, SECRET_WORDS.length - 1));
-  const HISTORY_KEY = "wordle-latino-historial";
+        // Cuántas palabras recientes se recuerdan para no repetirlas
+        const HISTORY_SIZE = Math.max(1, Math.min(60, SECRET_WORDS.length - 1));
+        const HISTORY_KEY = "wordle-latino-historial";
 
-  // Límite de partidas.
-  // false = modo prueba: partidas ilimitadas, sin tiempo de espera.
-  // true  = máximo MAX_PLAYS partidas cada 24 horas.
-  const LIMIT_ENABLED = false;
-  const MAX_PLAYS = 2;
-  const WINDOW_MS = 24 * 60 * 60 * 1000;
-  const STORAGE_KEY = "wordle-latino-partidas";
+        // Límite de partidas.
+        // false = modo prueba: partidas ilimitadas, sin tiempo de espera.
+        // true  = máximo MAX_PLAYS partidas cada 24 horas.
+        const LIMIT_ENABLED = false;
+        const MAX_PLAYS = 2;
+        const WINDOW_MS = 24 * 60 * 60 * 1000;
+        const STORAGE_KEY = "wordle-latino-partidas";
 
-  // Palabras aceptadas como intento: español latinoamericano, sin tildes (excepto la Ñ).
-  // Puedes agregar más palabras a esta lista.
-  const VALID_WORDS = new Set([
-    ...SECRET_WORDS,
-    // A
-    "ABEJA","ABRIR","ACERO","ACTOR","AGUJA","AHORA","AJENO","ALAMO","ALBUM","ALDEA",
-    "ALGUN","ALMAS","ALTAR","ALTOS","AMIGO","AMIGA","AMBOS","ANCHO","ANDAR","ANGEL",
-    "ANIMO","ANTES","AÑEJO","APODO","ARBOL","ARCOS","ARDER","ARENA","ARETE","ARMAR",
-    "AROMA","ARROZ","ASADO","ATAJO","ATLAS","ATRAS","AUTOS","AVION","AVISO","AYUDA",
-    // B
-    "BAHIA","BAILE","BAJAR","BALDE","BANCO","BANDA","BARBA","BARCO","BARRA","BARRO",
-    "BASTA","BEBER","BEBES","BELLO","BESAR","BESOS","BICHO","BLUSA","BOCAS","BODAS",
-    "BOLSA","BOMBA","BORDE","BOTAS","BOTON","BRAVO","BRAZO","BRISA","BROMA","BRUJA",
-    "BUENO","BURRO","BUSCA","BUZON",
-    // C
-    "CABRA","CACAO","CAFES","CAJAS","CALLE","CALMA","CALOR","CAMAS","CAMPO","CANAL",
-    "CANOA","CANTO","CAÑON","CARNE","CARRO","CARTA","CASAS","CAUSA","CEBRA","CELDA",
-    "CENAR","CERCA","CERDO","CERRO","CHICO","CHICA","CHILE","CHIVO","CHELA","CHAMO",
-    "CIELO","CIRCO","CITAS","CLARO","CLASE","CLAVE","CLAVO","COBRE","COLOR","COMER",
-    "COMUN","COPAS","CORAL","CORTO","COSAS","COSTA","CREER","CRUCE","CUATE","CUERO",
-    "CUEVA","CULPA","CURVA",
-    // D
-    "DAMAS","DANZA","DATOS","DEBER","DECIR","DEDOS","DEJAR","DESDE","DICHA","DIOSA",
-    "DISCO","DOLOR","DONDE","DRAMA","DUCHA","DUDAS","DUEÑO","DULCE","DURAR",
-    // E
-    "ELOTE","ENERO","ENTRE","ENVIO","EPOCA","ERIZO","ERROR","ESTAR","ETAPA","EXITO","EXTRA",
-    // F
-    "FALDA","FALLA","FALSO","FAROL","FECHA","FERIA","FIBRA","FIERA","FIJAR","FILAS",
-    "FINAL","FIRMA","FLACO","FLOJO","FLORA","FLOTA","FOCOS","FONDO","FORMA","FOTOS",
-    "FRASE","FRENO","FRESA","FRUTA","FUEGO","FUERA","FUMAR","FUNDA",
-    // G
-    "GALLO","GANAR","GANSO","GARRA","GASTO","GATOS","GENIO","GENTE","GIRAR","GLOBO",
-    "GOLPE","GORDO","GORRA","GOTAS","GRADO","GRAMO","GRANO","GRASA","GRAVE","GRITO",
-    "GRUPO","GUAPO","GUIAR","GUISO","GUSTO",
-    // H
-    "HABER","HACER","HACIA","HARTO","HELAR","HECHO","HIELO","HIGOS","HIJOS","HILOS",
-    "HOGAR","HOJAS","HONDO","HONOR","HORAS","HORNO","HOTEL","HUEVO","HUMOR","HURTO",
-    // I
-    "IDEAS","IDOLO","IGUAL","IMPAR","ISLAS",
-    // J
-    "JABON","JAMON","JARRA","JAULA","JEFES","JOVEN","JOYAS","JUEGO","JUGAR","JUGOS",
-    "JUNTO","JURAR","JUSTO",
-    // L
-    "LABIO","LADOS","LAGOS","LAPIZ","LARGO","LATAS","LAVAR","LECHE","LEJOS","LENTO",
-    "LETRA","LIBRE","LIBRO","LIMON","LINDO","LINDA","LINEA","LISTA","LISTO","LLAMA",
-    "LLANO","LLAVE","LLENO","LOCAL","LOCOS","LOMAS","LUCHA","LUGAR","LUNAR","LUNES",
-    // M
-    "MACHO","MADRE","MAGIA","MALOS","MAMAS","MANGO","MANOS","MANTA","MAPAS","MARCA",
-    "MARCO","MAREA","MARZO","MASAS","MATAR","MAYOR","MEDIA","MEDIO","MEJOR","MENOS",
-    "MENTA","MESAS","METAL","METRO","MIEDO","MIRAR","MISMO","MITAD","MODAS","MOLER",
-    "MONTE","MORAL","MORIR","MOSCA","MOTOR","MUCHO","MUDAR","MUELA","MUNDO","MUSEO",
-    // N
-    "NACER","NADAR","NAFTA","NARIZ","NIEVE","NIÑOS","NIÑAS","NIVEL","NOBLE","NOCHE",
-    "NORTE","NOTAS","NOVIA","NOVIO","NUBES","NUDOS","NUERA","NUEVO","NUNCA",
-    // O
-    "OBRAS","ODIAR","OESTE","OJALA","OLIVO","OLLAS","ONDAS","OPERA","ORDEN","OREJA",
-    "OTOÑO","OVEJA",
-    // P
-    "PADRE","PAGAR","PALMA","PALOS","PALTA","PANAL","PANZA","PAPAS","PAPEL","PARED",
-    "PARAR","PARTE","PASAR","PASEO","PASTA","PASTO","PATIO","PATOS","PAUSA","PECHO",
-    "PEDIR","PEINE","PELEA","PELOS","PERAS","PERLA","PERRO","PESAR","PESCA","PIANO",
-    "PIBES","PICAR","PIEZA","PILAS","PINTA","PIÑAS","PISAR","PISOS","PISTA","PLACA",
-    "PLANO","PLATA","PLATO","PLAYA","PLAZA","PLUMA","POBRE","POCOS","PODER","POLLO",
-    "POLVO","PONER","POTRO","PRADO","PRESO","PRIMO","PRISA","PULPO","PUNTO","PUÑAL",
-    // Q
-    "QUESO","QUIEN",
-    // R
-    "RADIO","RAMAS","RANAS","RASGO","RATON","RAYOS","RAZON","REINA","RELOJ","REMAR",
-    "RENTA","RESTO","REZAR","RICOS","RIEGO","RIFLE","RIMAS","RISAS","RITMO","ROBAR",
-    "ROBLE","ROCAS","RODAR","ROJOS","ROPAS","ROSAS","RUEDA","RUIDO","RUMBO",
-    // S
-    "SABER","SABOR","SACAR","SALIR","SALSA","SALTO","SALUD","SANTO","SECAR","SEDAS",
-    "SEGUN","SELVA","SEÑAL","SEÑOR","SERIO","SIETE","SIGLO","SILLA","SITIO","SOBRE",
-    "SOLAR","SOLOS","SONAR","SOÑAR","SUAVE","SUBIR","SUCIO","SUDOR","SUELO","SUEÑO","SUMAR",
-    // T
-    "TABLA","TACOS","TALLA","TAPAS","TARDE","TAREA","TARRO","TAZAS","TECHO","TEJER",
-    "TEMOR","TEMAS","TENER","TERCO","TIBIO","TIGRE","TINTA","TIRAR","TOCAR","TOMAR",
-    "TONTO","TORRE","TORTA","TOROS","TOTAL","TRAER","TRAJE","TRAMO","TRAPO","TRATO",
-    "TRIGO","TRUCO","TUMBA","TURNO",
-    // U
-    "UNICO","UNION","UNIDO","USADO",
-    // V
-    "VACAS","VACIO","VAGON","VALLE","VALOR","VAPOR","VASOS","VECES","VEJEZ","VELAS",
-    "VENIR","VENTA","VERDE","VERSO","VIAJE","VIDAS","VIEJO","VISTA","VIUDA","VIVIR",
-    "VOLAR","VOTAR","VUELO",
-    // Y / Z
-    "YEGUA","YERBA","YERNO","ZORRO","ZONAS","ZURDO"
-  ].filter(w => w.length === WORD_LENGTH));
+        // Palabras aceptadas como intento: español latinoamericano, sin tildes (excepto la Ñ).
+        // Puedes agregar más palabras a esta lista.
+        const VALID_WORDS = new Set([
+            ...SECRET_WORDS,
+            // A
+            "ABEJA", "ABRIR", "ACERO", "ACTOR", "AGUJA", "AHORA", "AJENO", "ALAMO", "ALBUM", "ALDEA",
+            "ALGUN", "ALMAS", "ALTAR", "ALTOS", "AMIGO", "AMIGA", "AMBOS", "ANCHO", "ANDAR", "ANGEL",
+            "ANIMO", "ANTES", "AÑEJO", "APODO", "ARBOL", "ARCOS", "ARDER", "ARENA", "ARETE", "ARMAR",
+            "AROMA", "ARROZ", "ASADO", "ATAJO", "ATLAS", "ATRAS", "AUTOS", "AVION", "AVISO", "AYUDA",
+            // B
+            "BAHIA", "BAILE", "BAJAR", "BALDE", "BANCO", "BANDA", "BARBA", "BARCO", "BARRA", "BARRO",
+            "BASTA", "BEBER", "BEBES", "BELLO", "BESAR", "BESOS", "BICHO", "BLUSA", "BOCAS", "BODAS",
+            "BOLSA", "BOMBA", "BORDE", "BOTAS", "BOTON", "BRAVO", "BRAZO", "BRISA", "BROMA", "BRUJA",
+            "BUENO", "BURRO", "BUSCA", "BUZON",
+            // C
+            "CABRA", "CACAO", "CAFES", "CAJAS", "CALLE", "CALMA", "CALOR", "CAMAS", "CAMPO", "CANAL",
+            "CANOA", "CANTO", "CAÑON", "CARNE", "CARRO", "CARTA", "CASAS", "CAUSA", "CEBRA", "CELDA",
+            "CENAR", "CERCA", "CERDO", "CERRO", "CHICO", "CHICA", "CHILE", "CHIVO", "CHELA", "CHAMO",
+            "CIELO", "CIRCO", "CITAS", "CLARO", "CLASE", "CLAVE", "CLAVO", "COBRE", "COLOR", "COMER",
+            "COMUN", "COPAS", "CORAL", "CORTO", "COSAS", "COSTA", "CREER", "CRUCE", "CUATE", "CUERO",
+            "CUEVA", "CULPA", "CURVA",
+            // D
+            "DAMAS", "DANZA", "DATOS", "DEBER", "DECIR", "DEDOS", "DEJAR", "DESDE", "DICHA", "DIOSA",
+            "DISCO", "DOLOR", "DONDE", "DRAMA", "DUCHA", "DUDAS", "DUEÑO", "DULCE", "DURAR",
+            // E
+            "ELOTE", "ENERO", "ENTRE", "ENVIO", "EPOCA", "ERIZO", "ERROR", "ESTAR", "ETAPA", "EXITO", "EXTRA",
+            // F
+            "FALDA", "FALLA", "FALSO", "FAROL", "FECHA", "FERIA", "FIBRA", "FIERA", "FIJAR", "FILAS",
+            "FINAL", "FIRMA", "FLACO", "FLOJO", "FLORA", "FLOTA", "FOCOS", "FONDO", "FORMA", "FOTOS",
+            "FRASE", "FRENO", "FRESA", "FRUTA", "FUEGO", "FUERA", "FUMAR", "FUNDA",
+            // G
+            "GALLO", "GANAR", "GANSO", "GARRA", "GASTO", "GATOS", "GENIO", "GENTE", "GIRAR", "GLOBO",
+            "GOLPE", "GORDO", "GORRA", "GOTAS", "GRADO", "GRAMO", "GRANO", "GRASA", "GRAVE", "GRITO",
+            "GRUPO", "GUAPO", "GUIAR", "GUISO", "GUSTO",
+            // H
+            "HABER", "HACER", "HACIA", "HARTO", "HELAR", "HECHO", "HIELO", "HIGOS", "HIJOS", "HILOS",
+            "HOGAR", "HOJAS", "HONDO", "HONOR", "HORAS", "HORNO", "HOTEL", "HUEVO", "HUMOR", "HURTO",
+            // I
+            "IDEAS", "IDOLO", "IGUAL", "IMPAR", "ISLAS",
+            // J
+            "JABON", "JAMON", "JARRA", "JAULA", "JEFES", "JOVEN", "JOYAS", "JUEGO", "JUGAR", "JUGOS",
+            "JUNTO", "JURAR", "JUSTO",
+            // L
+            "LABIO", "LADOS", "LAGOS", "LAPIZ", "LARGO", "LATAS", "LAVAR", "LECHE", "LEJOS", "LENTO",
+            "LETRA", "LIBRE", "LIBRO", "LIMON", "LINDO", "LINDA", "LINEA", "LISTA", "LISTO", "LLAMA",
+            "LLANO", "LLAVE", "LLENO", "LOCAL", "LOCOS", "LOMAS", "LUCHA", "LUGAR", "LUNAR", "LUNES",
+            // M
+            "MACHO", "MADRE", "MAGIA", "MALOS", "MAMAS", "MANGO", "MANOS", "MANTA", "MAPAS", "MARCA",
+            "MARCO", "MAREA", "MARZO", "MASAS", "MATAR", "MAYOR", "MEDIA", "MEDIO", "MEJOR", "MENOS",
+            "MENTA", "MESAS", "METAL", "METRO", "MIEDO", "MIRAR", "MISMO", "MITAD", "MODAS", "MOLER",
+            "MONTE", "MORAL", "MORIR", "MOSCA", "MOTOR", "MUCHO", "MUDAR", "MUELA", "MUNDO", "MUSEO",
+            // N
+            "NACER", "NADAR", "NAFTA", "NARIZ", "NIEVE", "NIÑOS", "NIÑAS", "NIVEL", "NOBLE", "NOCHE",
+            "NORTE", "NOTAS", "NOVIA", "NOVIO", "NUBES", "NUDOS", "NUERA", "NUEVO", "NUNCA",
+            // O
+            "OBRAS", "ODIAR", "OESTE", "OJALA", "OLIVO", "OLLAS", "ONDAS", "OPERA", "ORDEN", "OREJA",
+            "OTOÑO", "OVEJA",
+            // P
+            "PADRE", "PAGAR", "PALMA", "PALOS", "PALTA", "PANAL", "PANZA", "PAPAS", "PAPEL", "PARED",
+            "PARAR", "PARTE", "PASAR", "PASEO", "PASTA", "PASTO", "PATIO", "PATOS", "PAUSA", "PECHO",
+            "PEDIR", "PEINE", "PELEA", "PELOS", "PERAS", "PERLA", "PERRO", "PESAR", "PESCA", "PIANO",
+            "PIBES", "PICAR", "PIEZA", "PILAS", "PINTA", "PIÑAS", "PISAR", "PISOS", "PISTA", "PLACA",
+            "PLANO", "PLATA", "PLATO", "PLAYA", "PLAZA", "PLUMA", "POBRE", "POCOS", "PODER", "POLLO",
+            "POLVO", "PONER", "POTRO", "PRADO", "PRESO", "PRIMO", "PRISA", "PULPO", "PUNTO", "PUÑAL",
+            // Q
+            "QUESO", "QUIEN",
+            // R
+            "RADIO", "RAMAS", "RANAS", "RASGO", "RATON", "RAYOS", "RAZON", "REINA", "RELOJ", "REMAR",
+            "RENTA", "RESTO", "REZAR", "RICOS", "RIEGO", "RIFLE", "RIMAS", "RISAS", "RITMO", "ROBAR",
+            "ROBLE", "ROCAS", "RODAR", "ROJOS", "ROPAS", "ROSAS", "RUEDA", "RUIDO", "RUMBO",
+            // S
+            "SABER", "SABOR", "SACAR", "SALIR", "SALSA", "SALTO", "SALUD", "SANTO", "SECAR", "SEDAS",
+            "SEGUN", "SELVA", "SEÑAL", "SEÑOR", "SERIO", "SIETE", "SIGLO", "SILLA", "SITIO", "SOBRE",
+            "SOLAR", "SOLOS", "SONAR", "SOÑAR", "SUAVE", "SUBIR", "SUCIO", "SUDOR", "SUELO", "SUEÑO", "SUMAR",
+            // T
+            "TABLA", "TACOS", "TALLA", "TAPAS", "TARDE", "TAREA", "TARRO", "TAZAS", "TECHO", "TEJER",
+            "TEMOR", "TEMAS", "TENER", "TERCO", "TIBIO", "TIGRE", "TINTA", "TIRAR", "TOCAR", "TOMAR",
+            "TONTO", "TORRE", "TORTA", "TOROS", "TOTAL", "TRAER", "TRAJE", "TRAMO", "TRAPO", "TRATO",
+            "TRIGO", "TRUCO", "TUMBA", "TURNO",
+            // U
+            "UNICO", "UNION", "UNIDO", "USADO",
+            // V
+            "VACAS", "VACIO", "VAGON", "VALLE", "VALOR", "VAPOR", "VASOS", "VECES", "VEJEZ", "VELAS",
+            "VENIR", "VENTA", "VERDE", "VERSO", "VIAJE", "VIDAS", "VIEJO", "VISTA", "VIUDA", "VIVIR",
+            "VOLAR", "VOTAR", "VUELO",
+            // Y / Z
+            "YEGUA", "YERBA", "YERNO", "ZORRO", "ZONAS", "ZURDO"
+        ].filter(w => w.length === WORD_LENGTH));
 
-  const KEY_ROWS = [
-    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-    ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
-    ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BORRAR"]
-  ];
-  const STATE_RANK = { absent: 1, present: 2, correct: 3 };
+        const KEY_ROWS = [
+            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
+            ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BORRAR"]
+        ];
+        const STATE_RANK = { absent: 1, present: 2, correct: 3 };
 
-  // Convierte vocales con tilde o diéresis a su forma simple (la Ñ se conserva)
-  const ACCENTS = { "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "Ü": "U" };
+        // Convierte vocales con tilde o diéresis a su forma simple (la Ñ se conserva)
+        const ACCENTS = { "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "Ü": "U" };
 
-  // ================== Estado ==================
-  let secret, currentRow, currentGuess, gameOver, busy, keyStates, started, countdownTimer;
+        // ================== Estado ==================
+        let secret, currentRow, currentGuess, gameOver, busy, keyStates, started, countdownTimer;
 
-  const boardEl = document.getElementById("board");
-  const keyboardEl = document.getElementById("keyboard");
-  const toastEl = document.getElementById("toast");
-  const overlayEl = document.getElementById("overlay");
-  const playsEl = document.getElementById("plays");
-  const countdownEl = document.getElementById("countdown");
-  const restartBtn = document.getElementById("restart");
-  const pillEl = document.getElementById("result-word");
+        const boardEl = document.getElementById("board");
+        const keyboardEl = document.getElementById("keyboard");
+        const toastEl = document.getElementById("toast");
+        const overlayEl = document.getElementById("overlay");
+        const playsEl = document.getElementById("plays");
+        const countdownEl = document.getElementById("countdown");
+        const restartBtn = document.getElementById("restart");
+        const closeTabBtn = document.getElementById("close-tab");
+        const pillEl = document.getElementById("result-word");
 
-  const tile = (r, c) => document.getElementById(`t-${r}-${c}`);
+        const tile = (r, c) => document.getElementById(`t-${r}-${c}`);
 
-  // ================== Límite de partidas (24 h) ==================
-  // Se guarda: cada partida jugada ({ t: hora de inicio, w: palabra }) y la partida en curso.
-  let memoryStore = { plays: [], current: null };
+        // ================== Límite de partidas (24 h) ==================
+        // Se guarda: cada partida jugada ({ t: hora de inicio, w: palabra }) y la partida en curso.
+        let memoryStore = { plays: [], current: null };
 
-  function getStore() {
-    let store = memoryStore;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) store = JSON.parse(raw);
-    } catch (e) { /* sin almacenamiento: se usa la memoria */ }
+        function getStore() {
+            let store = memoryStore;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) store = JSON.parse(raw);
+            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
 
-    if (!store || typeof store !== "object") store = { plays: [], current: null };
-    const now = Date.now();
-    store.plays = Array.isArray(store.plays)
-      ? store.plays
-          .map(p => (typeof p === "number" ? { t: p, w: null } : p))
-          .filter(p => p && typeof p.t === "number" && now - p.t < WINDOW_MS)
-      : [];
-    const cur = store.current;
-    if (!cur || !SECRET_WORDS.includes(cur.secret) || !Array.isArray(cur.guesses)) {
-      store.current = null;
-    }
-    return store;
-  }
-
-  function saveStore(store) {
-    memoryStore = store;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-  }
-
-  const playsLeft = () =>
-    LIMIT_ENABLED ? Math.max(0, MAX_PLAYS - getStore().plays.length) : Infinity;
-
-  // ================== Elección aleatoria de la palabra ==================
-  let memoryHistory = [];
-
-  function loadHistory() {
-    try {
-      const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
-      if (Array.isArray(h)) return h;
-    } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-    return memoryHistory;
-  }
-
-  function saveHistory(history) {
-    memoryHistory = history;
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-  }
-
-  function randomInt(n) {
-    if (window.crypto && crypto.getRandomValues) {
-      const buf = new Uint32Array(1);
-      crypto.getRandomValues(buf);
-      return buf[0] % n;
-    }
-    return Math.floor(Math.random() * n);
-  }
-
-  // Elige una palabra al azar que no haya salido recientemente
-  function pickSecret() {
-    const history = loadHistory();
-    const used = new Set(history);
-    if (LIMIT_ENABLED) getStore().plays.forEach(p => used.add(p.w));
-
-    let pool = SECRET_WORDS.filter(w => !used.has(w));
-    if (!pool.length) pool = SECRET_WORDS.filter(w => w !== history[history.length - 1]);
-    if (!pool.length) pool = SECRET_WORDS;
-
-    const word = pool[randomInt(pool.length)];
-    saveHistory([...history, word].slice(-HISTORY_SIZE));
-    return word;
-  }
-
-  function formatTime(ms) {
-    const total = Math.max(0, Math.ceil(ms / 1000));
-    const h = String(Math.floor(total / 3600)).padStart(2, "0");
-    const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
-    const s = String(total % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-  }
-
-  function updatePlaysInfo() {
-    playsEl.innerHTML = "";
-    if (!LIMIT_ENABLED) {
-      playsEl.textContent = "Modo prueba · partidas ilimitadas";
-      return;
-    }
-    const left = playsLeft();
-    for (let i = 0; i < MAX_PLAYS; i++) {
-      const dot = document.createElement("span");
-      dot.className = "dot" + (i < left ? " on" : "");
-      playsEl.appendChild(dot);
-    }
-    const label = document.createElement("span");
-    label.className = "label";
-    label.textContent = left === 1 ? "1 partida disponible" : `${left} partidas disponibles`;
-    playsEl.appendChild(label);
-  }
-
-  // Actualiza el botón del cuadro final: habilitado o con cuenta regresiva
-  function refreshOverlayButton() {
-    clearInterval(countdownTimer);
-    if (!LIMIT_ENABLED) {
-      countdownEl.textContent = "La próxima partida tendrá otra palabra.";
-      restartBtn.disabled = false;
-      restartBtn.textContent = "Jugar de nuevo";
-      return;
-    }
-    const tick = () => {
-      const store = getStore();
-      if (store.plays.length < MAX_PLAYS) {
-        clearInterval(countdownTimer);
-        const left = MAX_PLAYS - store.plays.length;
-        countdownEl.textContent = left === 1
-          ? "Te queda 1 partida disponible, con otra palabra."
-          : `Te quedan ${left} partidas disponibles.`;
-        restartBtn.disabled = false;
-        restartBtn.textContent = "Jugar de nuevo";
-        updatePlaysInfo();
-        return;
-      }
-      const ms = Math.min(...store.plays.map(p => p.t)) + WINDOW_MS - Date.now();
-      countdownEl.textContent = `Próxima partida en ${formatTime(ms)}`;
-      restartBtn.disabled = true;
-      restartBtn.textContent = "Vuelve más tarde";
-    };
-    tick();
-    countdownTimer = setInterval(tick, 1000);
-  }
-
-  function showLimit() {
-    gameOver = true;
-    document.getElementById("result-title").textContent = "⏳ Límite alcanzado";
-    document.getElementById("result-text").textContent =
-      `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`;
-    pillEl.style.display = "none";
-    refreshOverlayButton();
-    overlayEl.classList.add("show");
-  }
-
-  // ================== Utilidades ==================
-  let toastTimer;
-  function showToast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
-  }
-
-  // Evalúa la palabra gestionando correctamente las letras repetidas
-  function evaluate(guess, target) {
-    const result = Array(WORD_LENGTH).fill("absent");
-    const remaining = {};
-    for (let i = 0; i < WORD_LENGTH; i++) {
-      if (guess[i] === target[i]) result[i] = "correct";
-      else remaining[target[i]] = (remaining[target[i]] || 0) + 1;
-    }
-    for (let i = 0; i < WORD_LENGTH; i++) {
-      if (result[i] !== "correct" && remaining[guess[i]] > 0) {
-        result[i] = "present";
-        remaining[guess[i]]--;
-      }
-    }
-    return result;
-  }
-
-  // ================== Interfaz ==================
-  function buildBoard() {
-    boardEl.innerHTML = "";
-    for (let r = 0; r < MAX_ATTEMPTS; r++) {
-      const row = document.createElement("div");
-      row.className = "row";
-      row.id = `r-${r}`;
-      for (let c = 0; c < WORD_LENGTH; c++) {
-        const t = document.createElement("div");
-        t.className = "tile";
-        t.id = `t-${r}-${c}`;
-        row.appendChild(t);
-      }
-      boardEl.appendChild(row);
-    }
-  }
-
-  function buildKeyboard() {
-    keyboardEl.innerHTML = "";
-    KEY_ROWS.forEach(row => {
-      const rowDiv = document.createElement("div");
-      rowDiv.className = "kb-row";
-      row.forEach(k => {
-        const btn = document.createElement("button");
-        btn.className = "key";
-        if (k === "ENTER" || k === "BORRAR") {
-          btn.classList.add("wide");
-          if (k === "ENTER") {
-            btn.classList.add("enter");
-            btn.textContent = "ENVIAR";
-          } else {
-            btn.textContent = "⌫";
-          }
-        } else {
-          btn.textContent = k;
-          btn.id = `key-${k}`;
+            if (!store || typeof store !== "object") store = { plays: [], current: null };
+            const now = Date.now();
+            store.plays = Array.isArray(store.plays)
+                ? store.plays
+                    .map(p => (typeof p === "number" ? { t: p, w: null } : p))
+                    .filter(p => p && typeof p.t === "number" && now - p.t < WINDOW_MS)
+                : [];
+            const cur = store.current;
+            if (!cur || !SECRET_WORDS.includes(cur.secret) || !Array.isArray(cur.guesses)) {
+                store.current = null;
+            }
+            return store;
         }
-        btn.addEventListener("click", e => {
-          e.currentTarget.blur();
-          handleKey(k);
+
+        function saveStore(store) {
+            memoryStore = store;
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
+        }
+
+        const playsLeft = () =>
+            LIMIT_ENABLED ? Math.max(0, MAX_PLAYS - getStore().plays.length) : Infinity;
+
+        // ================== Elección aleatoria de la palabra ==================
+        let memoryHistory = [];
+
+        function loadHistory() {
+            try {
+                const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
+                if (Array.isArray(h)) return h;
+            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
+            return memoryHistory;
+        }
+
+        function saveHistory(history) {
+            memoryHistory = history;
+            try {
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
+        }
+
+        function randomInt(n) {
+            if (window.crypto && crypto.getRandomValues) {
+                const buf = new Uint32Array(1);
+                crypto.getRandomValues(buf);
+                return buf[0] % n;
+            }
+            return Math.floor(Math.random() * n);
+        }
+
+        // Elige una palabra al azar que no haya salido recientemente
+        function pickSecret() {
+            const history = loadHistory();
+            const used = new Set(history);
+            if (LIMIT_ENABLED) getStore().plays.forEach(p => used.add(p.w));
+
+            let pool = SECRET_WORDS.filter(w => !used.has(w));
+            if (!pool.length) pool = SECRET_WORDS.filter(w => w !== history[history.length - 1]);
+            if (!pool.length) pool = SECRET_WORDS;
+
+            const word = pool[randomInt(pool.length)];
+            saveHistory([...history, word].slice(-HISTORY_SIZE));
+            return word;
+        }
+
+        function formatTime(ms) {
+            const total = Math.max(0, Math.ceil(ms / 1000));
+            const h = String(Math.floor(total / 3600)).padStart(2, "0");
+            const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+            const s = String(total % 60).padStart(2, "0");
+            return `${h}:${m}:${s}`;
+        }
+
+        function updatePlaysInfo() {
+            playsEl.innerHTML = "";
+            if (!LIMIT_ENABLED) {
+                playsEl.textContent = "Modo prueba · partidas ilimitadas";
+                return;
+            }
+            const left = playsLeft();
+            for (let i = 0; i < MAX_PLAYS; i++) {
+                const dot = document.createElement("span");
+                dot.className = "dot" + (i < left ? " on" : "");
+                playsEl.appendChild(dot);
+            }
+            const label = document.createElement("span");
+            label.className = "label";
+            label.textContent = left === 1 ? "1 partida disponible" : `${left} partidas disponibles`;
+            playsEl.appendChild(label);
+        }
+
+        // Actualiza el botón del cuadro final: habilitado o con cuenta regresiva
+        function refreshOverlayButton() {
+            clearInterval(countdownTimer);
+            if (!LIMIT_ENABLED) {
+                countdownEl.textContent = "La próxima partida tendrá otra palabra.";
+                restartBtn.disabled = false;
+                restartBtn.textContent = "Jugar de nuevo";
+                return;
+            }
+            const tick = () => {
+                const store = getStore();
+                if (store.plays.length < MAX_PLAYS) {
+                    clearInterval(countdownTimer);
+                    const left = MAX_PLAYS - store.plays.length;
+                    countdownEl.textContent = left === 1
+                        ? "Te queda 1 partida disponible, con otra palabra."
+                        : `Te quedan ${left} partidas disponibles.`;
+                    restartBtn.disabled = false;
+                    restartBtn.textContent = "Jugar de nuevo";
+                    updatePlaysInfo();
+                    return;
+                }
+                const ms = Math.min(...store.plays.map(p => p.t)) + WINDOW_MS - Date.now();
+                countdownEl.textContent = `Próxima partida en ${formatTime(ms)}`;
+                restartBtn.disabled = true;
+                restartBtn.textContent = "Vuelve más tarde";
+            };
+            tick();
+            countdownTimer = setInterval(tick, 1000);
+        }
+
+        function showLimit() {
+            gameOver = true;
+            document.getElementById("result-title").textContent = "⏳ Límite alcanzado";
+            document.getElementById("result-text").textContent =
+                `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`;
+            pillEl.style.display = "none";
+            refreshOverlayButton();
+            overlayEl.classList.add("show");
+        }
+
+        // ================== Utilidades ==================
+        let toastTimer;
+        function showToast(msg, ms = 1500) {
+            toastEl.textContent = msg;
+            toastEl.classList.add("show");
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
+        }
+
+        // Evalúa la palabra gestionando correctamente las letras repetidas
+        function evaluate(guess, target) {
+            const result = Array(WORD_LENGTH).fill("absent");
+            const remaining = {};
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (guess[i] === target[i]) result[i] = "correct";
+                else remaining[target[i]] = (remaining[target[i]] || 0) + 1;
+            }
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (result[i] !== "correct" && remaining[guess[i]] > 0) {
+                    result[i] = "present";
+                    remaining[guess[i]]--;
+                }
+            }
+            return result;
+        }
+
+        // ================== Interfaz ==================
+        function buildBoard() {
+            boardEl.innerHTML = "";
+            for (let r = 0; r < MAX_ATTEMPTS; r++) {
+                const row = document.createElement("div");
+                row.className = "row";
+                row.id = `r-${r}`;
+                for (let c = 0; c < WORD_LENGTH; c++) {
+                    const t = document.createElement("div");
+                    t.className = "tile";
+                    t.id = `t-${r}-${c}`;
+                    row.appendChild(t);
+                }
+                boardEl.appendChild(row);
+            }
+        }
+
+        function buildKeyboard() {
+            keyboardEl.innerHTML = "";
+            KEY_ROWS.forEach(row => {
+                const rowDiv = document.createElement("div");
+                rowDiv.className = "kb-row";
+                row.forEach(k => {
+                    const btn = document.createElement("button");
+                    btn.className = "key";
+                    if (k === "ENTER" || k === "BORRAR") {
+                        btn.classList.add("wide");
+                        if (k === "ENTER") {
+                            btn.classList.add("enter");
+                            btn.textContent = "ENVIAR";
+                        } else {
+                            btn.textContent = "⌫";
+                        }
+                    } else {
+                        btn.textContent = k;
+                        btn.id = `key-${k}`;
+                    }
+                    btn.addEventListener("click", e => {
+                        e.currentTarget.blur();
+                        handleKey(k);
+                    });
+                    rowDiv.appendChild(btn);
+                });
+                keyboardEl.appendChild(rowDiv);
+            });
+        }
+
+        // ================== Juego ==================
+        function resetBoard() {
+            currentRow = 0;
+            currentGuess = "";
+            gameOver = false;
+            busy = false;
+            started = false;
+            keyStates = {};
+            buildBoard();
+            buildKeyboard();
+        }
+
+        function newGame() {
+            if (playsLeft() <= 0) {
+                showLimit();
+                return;
+            }
+            clearInterval(countdownTimer);
+            overlayEl.classList.remove("show");
+            secret = pickSecret();
+            resetBoard();
+            updatePlaysInfo();
+        }
+
+        // Al cargar: retoma la partida en curso, muestra el límite o empieza una nueva
+        function init() {
+            if (!LIMIT_ENABLED) {
+                // Modo prueba: se borran las partidas guardadas de pruebas anteriores
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
+                newGame();
+                return;
+            }
+
+            const store = getStore();
+            saveStore(store);
+
+            if (store.current) {
+                resetBoard();
+                secret = store.current.secret;
+                started = true;
+                const guesses = store.current.guesses
+                    .filter(g => typeof g === "string" && g.length === WORD_LENGTH)
+                    .slice(0, MAX_ATTEMPTS);
+
+                guesses.forEach(g => {
+                    const result = evaluate(g, secret);
+                    for (let c = 0; c < WORD_LENGTH; c++) {
+                        const t = tile(currentRow, c);
+                        t.textContent = g[c];
+                        t.classList.add(result[c]);
+                    }
+                    updateKeyboard(g, result);
+                    currentRow++;
+                });
+                updatePlaysInfo();
+
+                if (guesses[guesses.length - 1] === secret) endGame(true);
+                else if (currentRow >= MAX_ATTEMPTS) endGame(false);
+            } else if (store.plays.length >= MAX_PLAYS) {
+                resetBoard();
+                updatePlaysInfo();
+                showLimit();
+            } else {
+                newGame();
+            }
+        }
+
+        function handleKey(key) {
+            if (gameOver || busy) return;
+            if (key === "ENTER") {
+                submitGuess();
+            } else if (key === "BORRAR") {
+                currentGuess = currentGuess.slice(0, -1);
+                renderRow();
+            } else if (/^[A-ZÑ]$/.test(key) && currentGuess.length < WORD_LENGTH) {
+                currentGuess += key;
+                renderRow();
+            }
+        }
+
+        function renderRow() {
+            for (let c = 0; c < WORD_LENGTH; c++) {
+                const t = tile(currentRow, c);
+                const letter = currentGuess[c] || "";
+                if (t.textContent !== letter) {
+                    t.textContent = letter;
+                    t.classList.toggle("filled", !!letter);
+                }
+            }
+        }
+
+        function shakeRow() {
+            const row = document.getElementById(`r-${currentRow}`);
+            row.classList.remove("shake");
+            void row.offsetWidth;
+            row.classList.add("shake");
+        }
+
+        function submitGuess() {
+            if (currentGuess.length < WORD_LENGTH) {
+                shakeRow();
+                showToast("Faltan letras");
+                return;
+            }
+            if (!VALID_WORDS.has(currentGuess)) {
+                shakeRow();
+                showToast("No está en la lista de palabras");
+                return;
+            }
+
+            // Con límite activo, la partida cuenta desde la primera palabra enviada
+            if (LIMIT_ENABLED) {
+                const store = getStore();
+                if (!started) {
+                    if (store.plays.length >= MAX_PLAYS) {
+                        showLimit();
+                        return;
+                    }
+                    store.plays.push({ t: Date.now(), w: secret });
+                    store.current = { secret, guesses: [] };
+                    started = true;
+                }
+                if (!store.current) store.current = { secret, guesses: [] };
+                store.current.guesses.push(currentGuess);
+                saveStore(store);
+                updatePlaysInfo();
+            }
+
+            busy = true;
+            const guess = currentGuess;
+            const row = currentRow;
+            const result = evaluate(guess, secret);
+
+            for (let c = 0; c < WORD_LENGTH; c++) {
+                const t = tile(row, c);
+                setTimeout(() => {
+                    t.classList.add("flip");
+                    setTimeout(() => t.classList.add(result[c]), 250);
+                }, c * FLIP_DELAY);
+            }
+
+            setTimeout(() => {
+                updateKeyboard(guess, result);
+                currentRow++;
+                currentGuess = "";
+                busy = false;
+
+                if (guess === secret) endGame(true);
+                else if (currentRow >= MAX_ATTEMPTS) endGame(false);
+            }, FLIP_DELAY * (WORD_LENGTH - 1) + 550);
+        }
+
+        function updateKeyboard(guess, result) {
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                const letter = guess[i];
+                const prev = keyStates[letter];
+                if (!prev || STATE_RANK[result[i]] > STATE_RANK[prev]) {
+                    keyStates[letter] = result[i];
+                    const keyEl = document.getElementById(`key-${letter}`);
+                    if (keyEl) {
+                        keyEl.classList.remove("correct", "present", "absent");
+                        keyEl.classList.add(result[i]);
+                    }
+                }
+            }
+        }
+
+        function endGame(won) {
+            gameOver = true;
+            if (LIMIT_ENABLED) {
+                const store = getStore();
+                store.current = null;
+                saveStore(store);
+            }
+            updatePlaysInfo();
+
+            document.getElementById("result-title").textContent = won ? "🎉 ¡Ganaste!" : "😢 Perdiste";
+            document.getElementById("result-text").textContent = won
+                ? `Lo adivinaste en ${currentRow} de ${MAX_ATTEMPTS} intentos.`
+                : "Se acabaron los intentos. La palabra era:";
+            pillEl.textContent = secret;
+            pillEl.className = "word-pill " + (won ? "ok" : "ko");
+            pillEl.style.display = "";
+            refreshOverlayButton();
+            setTimeout(() => overlayEl.classList.add("show"), 400);
+        }
+
+        // Intenta cerrar la pestaña. Los navegadores solo lo permiten en algunos casos
+        // (por ejemplo, si la pestaña se abrió desde un enlace o con window.open).
+        function closeTab() {
+            window.close();
+            // Si la pestaña sigue abierta, el navegador bloqueó el cierre
+            setTimeout(() => {
+                clearInterval(countdownTimer);
+                overlayEl.classList.remove("show");
+                showToast("Tu navegador no permite cerrarla automáticamente. Ciérrala manualmente.", 4000);
+            }, 300);
+        }
+
+        // ================== Teclado físico ==================
+        document.addEventListener("keydown", e => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (overlayEl.classList.contains("show")) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!restartBtn.disabled) newGame();
+                }
+                return;
+            }
+            if (e.key === "Enter") { e.preventDefault(); handleKey("ENTER"); }
+            else if (e.key === "Backspace") { e.preventDefault(); handleKey("BORRAR"); }
+            else if (e.key.length === 1) {
+                const upper = e.key.toUpperCase();
+                const letter = ACCENTS[upper] || upper;
+                if (/^[A-ZÑ]$/.test(letter)) handleKey(letter);
+            }
         });
-        rowDiv.appendChild(btn);
-      });
-      keyboardEl.appendChild(rowDiv);
-    });
-  }
 
-  // ================== Juego ==================
-  function resetBoard() {
-    currentRow = 0;
-    currentGuess = "";
-    gameOver = false;
-    busy = false;
-    started = false;
-    keyStates = {};
-    buildBoard();
-    buildKeyboard();
-  }
+        restartBtn.addEventListener("click", () => {
+            if (!restartBtn.disabled) newGame();
+        });
+        closeTabBtn.addEventListener("click", closeTab);
 
-  function newGame() {
-    if (playsLeft() <= 0) {
-      showLimit();
-      return;
-    }
-    clearInterval(countdownTimer);
-    overlayEl.classList.remove("show");
-    secret = pickSecret();
-    resetBoard();
-    updatePlaysInfo();
-  }
-
-  // Al cargar: retoma la partida en curso, muestra el límite o empieza una nueva
-  function init() {
-    if (!LIMIT_ENABLED) {
-      // Modo prueba: se borran las partidas guardadas de pruebas anteriores
-      try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
-      newGame();
-      return;
-    }
-
-    const store = getStore();
-    saveStore(store);
-
-    if (store.current) {
-      resetBoard();
-      secret = store.current.secret;
-      started = true;
-      const guesses = store.current.guesses
-        .filter(g => typeof g === "string" && g.length === WORD_LENGTH)
-        .slice(0, MAX_ATTEMPTS);
-
-      guesses.forEach(g => {
-        const result = evaluate(g, secret);
-        for (let c = 0; c < WORD_LENGTH; c++) {
-          const t = tile(currentRow, c);
-          t.textContent = g[c];
-          t.classList.add(result[c]);
-        }
-        updateKeyboard(g, result);
-        currentRow++;
-      });
-      updatePlaysInfo();
-
-      if (guesses[guesses.length - 1] === secret) endGame(true);
-      else if (currentRow >= MAX_ATTEMPTS) endGame(false);
-    } else if (store.plays.length >= MAX_PLAYS) {
-      resetBoard();
-      updatePlaysInfo();
-      showLimit();
-    } else {
-      newGame();
-    }
-  }
-
-  function handleKey(key) {
-    if (gameOver || busy) return;
-    if (key === "ENTER") {
-      submitGuess();
-    } else if (key === "BORRAR") {
-      currentGuess = currentGuess.slice(0, -1);
-      renderRow();
-    } else if (/^[A-ZÑ]$/.test(key) && currentGuess.length < WORD_LENGTH) {
-      currentGuess += key;
-      renderRow();
-    }
-  }
-
-  function renderRow() {
-    for (let c = 0; c < WORD_LENGTH; c++) {
-      const t = tile(currentRow, c);
-      const letter = currentGuess[c] || "";
-      if (t.textContent !== letter) {
-        t.textContent = letter;
-        t.classList.toggle("filled", !!letter);
-      }
-    }
-  }
-
-  function shakeRow() {
-    const row = document.getElementById(`r-${currentRow}`);
-    row.classList.remove("shake");
-    void row.offsetWidth;
-    row.classList.add("shake");
-  }
-
-  function submitGuess() {
-    if (currentGuess.length < WORD_LENGTH) {
-      shakeRow();
-      showToast("Faltan letras");
-      return;
-    }
-    if (!VALID_WORDS.has(currentGuess)) {
-      shakeRow();
-      showToast("No está en la lista de palabras");
-      return;
-    }
-
-    // Con límite activo, la partida cuenta desde la primera palabra enviada
-    if (LIMIT_ENABLED) {
-      const store = getStore();
-      if (!started) {
-        if (store.plays.length >= MAX_PLAYS) {
-          showLimit();
-          return;
-        }
-        store.plays.push({ t: Date.now(), w: secret });
-        store.current = { secret, guesses: [] };
-        started = true;
-      }
-      if (!store.current) store.current = { secret, guesses: [] };
-      store.current.guesses.push(currentGuess);
-      saveStore(store);
-      updatePlaysInfo();
-    }
-
-    busy = true;
-    const guess = currentGuess;
-    const row = currentRow;
-    const result = evaluate(guess, secret);
-
-    for (let c = 0; c < WORD_LENGTH; c++) {
-      const t = tile(row, c);
-      setTimeout(() => {
-        t.classList.add("flip");
-        setTimeout(() => t.classList.add(result[c]), 250);
-      }, c * FLIP_DELAY);
-    }
-
-    setTimeout(() => {
-      updateKeyboard(guess, result);
-      currentRow++;
-      currentGuess = "";
-      busy = false;
-
-      if (guess === secret) endGame(true);
-      else if (currentRow >= MAX_ATTEMPTS) endGame(false);
-    }, FLIP_DELAY * (WORD_LENGTH - 1) + 550);
-  }
-
-  function updateKeyboard(guess, result) {
-    for (let i = 0; i < WORD_LENGTH; i++) {
-      const letter = guess[i];
-      const prev = keyStates[letter];
-      if (!prev || STATE_RANK[result[i]] > STATE_RANK[prev]) {
-        keyStates[letter] = result[i];
-        const keyEl = document.getElementById(`key-${letter}`);
-        if (keyEl) {
-          keyEl.classList.remove("correct", "present", "absent");
-          keyEl.classList.add(result[i]);
-        }
-      }
-    }
-  }
-
-  function endGame(won) {
-    gameOver = true;
-    if (LIMIT_ENABLED) {
-      const store = getStore();
-      store.current = null;
-      saveStore(store);
-    }
-    updatePlaysInfo();
-
-    document.getElementById("result-title").textContent = won ? "🎉 ¡Ganaste!" : "😢 Perdiste";
-    document.getElementById("result-text").textContent = won
-      ? `Lo adivinaste en ${currentRow} de ${MAX_ATTEMPTS} intentos.`
-      : "Se acabaron los intentos. La palabra era:";
-    pillEl.textContent = secret;
-    pillEl.className = "word-pill " + (won ? "ok" : "ko");
-    pillEl.style.display = "";
-    refreshOverlayButton();
-    setTimeout(() => overlayEl.classList.add("show"), 400);
-  }
-
-  // ================== Teclado físico ==================
-  document.addEventListener("keydown", e => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (overlayEl.classList.contains("show")) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (!restartBtn.disabled) newGame();
-      }
-      return;
-    }
-    if (e.key === "Enter") { e.preventDefault(); handleKey("ENTER"); }
-    else if (e.key === "Backspace") { e.preventDefault(); handleKey("BORRAR"); }
-    else if (e.key.length === 1) {
-      const upper = e.key.toUpperCase();
-      const letter = ACCENTS[upper] || upper;
-      if (/^[A-ZÑ]$/.test(letter)) handleKey(letter);
-    }
-  });
-
-  restartBtn.addEventListener("click", () => {
-    if (!restartBtn.disabled) newGame();
-  });
-
-  init();
-</script>
+        init();
+    </script>
 </body>
+
 </html>
