@@ -497,11 +497,6 @@
             min-height: 1.2em;
         }
 
-        .modal .hint {
-            font-size: 0.85rem;
-            font-style: italic;
-        }
-
         .word-pill {
             padding: 8px 16px;
             border-radius: 10px;
@@ -621,10 +616,8 @@
         <p id="countdown"></p>
         <div class="modal-actions">
             <button type="button" id="restart">Jugar de nuevo</button>
-            <button type="button" id="close-tab" class="btn-secondary">Cerrar pestaña</button>
+            <button type="button" id="close-dialog" class="btn-secondary">Cerrar</button>
         </div>
-        <p id="close-hint" class="hint" hidden>Tu navegador no permite cerrarla automáticamente. Ciérrala manualmente.
-        </p>
     </dialog>
 
     <script type="module">
@@ -797,8 +790,7 @@
         const pillEl = $("result-word");
         const countdownEl = $("countdown");
         const restartBtn = $("restart");
-        const closeTabBtn = $("close-tab");
-        const closeHintEl = $("close-hint");
+        const closeDialogBtn = $("close-dialog");
         const skyCanvas = $("sky-canvas");
         const skyBtn = $("sky-btn");
         const skyIcon = $("sky-icon");
@@ -1040,7 +1032,6 @@
                 pillEl.textContent = word;
                 pillEl.className = `word-pill ${won ? "ok" : "ko"}`;
             }
-            closeHintEl.hidden = true;
         }
 
         function showLimit() {
@@ -1761,13 +1752,6 @@
             openDialog();
         }
 
-        // Intenta cerrar la pestaña. Los navegadores solo lo permiten si la abrió un script
-        // (window.open); si sigue abierta tras un instante, se avisa dentro del cuadro.
-        function closeTab() {
-            window.close();
-            setTimeout(() => { closeHintEl.hidden = false; }, 300);
-        }
-
         function normalizeKey(key) {
             const upper = key.toUpperCase();
             return ACCENTS[upper] ?? upper;
@@ -1800,7 +1784,7 @@
         });
 
         restartBtn.addEventListener("click", newGame);
-        closeTabBtn.addEventListener("click", closeTab);
+        closeDialogBtn.addEventListener("click", () => dialogEl.close());
         dialogEl.addEventListener("close", () => clearInterval(countdownTimer));
 
         init();
