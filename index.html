@@ -434,6 +434,7 @@
     <header>
         <h1>WORDLE 2</h1>
         <div id="plays"></div>
+        <h3>Asi es Lucia este Wordle si tiene mas de un intento</h3>
     </header>
 
     <main>
@@ -458,6 +459,10 @@
 
     <script>
         // ================== Configuración ==================
+        const WORD_LENGTH = 5;
+        const MAX_ATTEMPTS = 6;
+        const FLIP_DELAY = 250;
+
         // Palabras secretas (5 letras, español latino). Cada partida elige una al azar
         // y no repite ninguna de las últimas HISTORY_SIZE palabras que ya salieron.
         const SECRET_WORDS = [
@@ -477,12 +482,68 @@
             "TACOS", "TARDE", "TECHO", "TIGRE", "TORRE", "TORTA", "TRAJE", "TRIGO", "VACAS", "VALLE",
             "VELAS", "VERDE", "VIAJE", "VUELO", "YEGUA", "ZORRO"
         ];
-        const WORD_LENGTH = 5;
-        const MAX_ATTEMPTS = 6;
-        const FLIP_DELAY = 250;
+
+        // ================== Palabras adicionales ==================
+        // Nuevas palabras secretas (también se aceptan como intento)
+        const EXTRA_SECRET_WORDS = [
+            "ABRIL", "ACTOR", "AGUJA", "ALDEA", "ANCLA", "ARAÑA", "AREPA", "ATAJO", "AVENA", "BALON",
+            "BARBA", "BARRO", "BOLSO", "BOMBA", "BORDE", "BOTON", "BUHOS", "BUZON", "CABLE", "CAJON",
+            "CALDO", "CANAL", "CANTO", "CARPA", "CASCO", "CEDRO", "CEJAS", "CESTA", "CHIVO", "CHOZA",
+            "CINCO", "CINTA", "CLIMA", "COBRE", "COCOS", "CODOS", "COFRE", "COJIN", "CORTE", "CREMA",
+            "CUERO", "DARDO", "DATIL", "DEDOS", "DOLAR", "DRAMA", "DUCHA", "DUNAS", "ENANO", "ENERO",
+            "FAROL", "FECHA", "FINCA", "FOCAS", "FOCOS", "FRENO", "GANSO", "GARZA", "GORRO", "GRANO",
+            "GRUTA", "GUISO", "HABAS", "HACHA", "HEROE", "HIENA", "HIGOS", "HONGO", "HUESO", "JAMON",
+            "JARRA", "JOYAS", "JULIO", "JUNIO", "KOALA", "LANZA", "LEONA", "LIBRA", "LICOR", "LIRIO",
+            "LLAMA", "LOBOS", "LOROS", "MALTA", "MANTA", "MAPAS", "MARZO", "MATES", "MELON", "MENTA",
+            "MILLA", "MONJA", "MONOS", "MORAS", "MORSA", "MUJER", "MULAS", "MURAL", "MUSGO", "MUSLO",
+            "NIDOS", "NIETO", "NOPAL", "NUEVE", "OLIVA", "OSTRA", "PALMA", "PAMPA", "PANDA", "PAÑAL",
+            "PATOS", "PAVOS", "PECES", "PEINE", "PERAS", "PERLA", "PESAS", "PINOS", "PIÑAS", "PISCO",
+            "PIZZA", "PLATO", "POEMA", "POETA", "POTRO", "PRADO", "PRIMO", "PUMAS", "PUNTA", "RAMAS",
+            "RANAS", "RAYOS", "REINA", "REMOS", "RIÑON", "ROBLE", "ROBOT", "ROCAS", "RODEO", "ROSAS",
+            "RUBIO", "SABIO", "SALON", "SAMBA", "SAPOS", "SAUCE", "SELLO", "SIETE", "SOPAS", "SUSTO",
+            "TALLO", "TAMAL", "TANGO", "TAPIZ", "TECLA", "TELAS", "TENIS", "TIZAS", "TOROS", "TRAPO",
+            "TRECE", "TRIBU", "TUCAN", "TUNEL", "VAGON", "VASOS", "VINOS", "VIRUS", "VOCES", "YATES",
+            "YEMAS", "YUCAS", "ZANJA"
+        ];
+
+        // Nuevas palabras aceptadas solo como intento
+        const EXTRA_VALID_WORDS = [
+            "ABONO", "ACASO", "ACERA", "ACIDO", "ADIOS", "ADOBE", "AGRIO", "AGUAS", "AIRES", "ALETA",
+            "ALGAS", "ALIAS", "ALZAR", "AMADO", "AMBAR", "ANEXO", "ANTRO", "APOYO", "ARDOR", "ARMAS",
+            "ARPON", "ASILO", "ASTRO", "ATROZ", "AULAS", "BAJOS", "BALAS", "BALSA", "BAÑAR", "BAÑOS",
+            "BARES", "BASES", "BATAS", "BECAS", "BOLAS", "BOTES", "BUFON", "BURLA", "BUSTO", "CABOS",
+            "CAIDA", "CALVO", "CANAS", "CAPAZ", "CARAS", "CARGA", "CAZAR", "CELOS", "CERCO", "CHAVO",
+            "CICLO", "CIEGO", "CIFRA", "COCER", "COLAS", "COLMO", "CONOS", "COPIA", "COSER", "CRUDO",
+            "CULTO", "CUOTA", "CURAR", "DADOS", "DEBIL", "DENSO", "DIETA", "DIGNO", "DOBLE", "DORSO",
+            "DOSIS", "DUELO", "ENOJO", "ESPIA", "ETICA", "FALTA", "FARSA", "FATAL", "FAVOR", "FELIZ",
+            "FEROZ", "FICHA", "FLUJO", "FOBIA", "FRIOS", "FUGAZ", "FUSIL", "GALAN", "GANAS", "GASES",
+            "GEMAS", "GIROS", "GOLES", "GOMAS", "GOZAR", "GUIAS", "GUION", "HABIL", "HEBRA", "HIMNO",
+            "HUECO", "HUMOS", "IDEAL", "JALAR", "JAMAS", "JERGA", "JUNTA", "LABOR", "LACIO", "LANAS",
+            "LAPSO", "LAZOS", "LEGAL", "LEGUA", "LEMAS", "LENTE", "LIDER", "LIGAR", "LLAGA", "LOGRO",
+            "LOTES", "LUCES", "LUJOS", "MAGOS", "MALLA", "MAMBO", "MANDO", "MANIA", "MARES", "MECER",
+            "MEDIR", "MENOR", "MENTE", "MICRO", "MIMOS", "MINAS", "MISAS", "MIXTO", "MOCOS", "MOLDE",
+            "MOTEL", "MOVER", "MUDOS", "MULTA", "MUROS", "MUTUO", "NABOS", "NADIE", "NAIPE", "NALGA",
+            "NAVES", "NECIO", "NEGAR", "NEGRO", "NIETA", "NINFA", "NORMA", "OBESO", "OBVIO", "OCASO",
+            "OPACO", "OSADO", "OSITO", "OVALO", "PACTO", "PAGOS", "PALCO", "PANEL", "PAÑOS", "PASOS",
+            "PATAS", "PATIN", "PECAR", "PEDAL", "PEGAR", "PELAR", "PENAS", "PEÑAS", "PESOS", "PICOS",
+            "PINZA", "PIPAS", "PLAGA", "PLAZO", "PLENO", "PLOMO", "POLAR", "POLEA", "POLOS", "POMPA",
+            "POROS", "POSTE", "POZOS", "PRESA", "PRIMA", "PROSA", "PUROS", "QUEJA", "RABIA", "RACHA",
+            "RADAR", "RAROS", "RATAS", "RAYAS", "RECTO", "REDES", "REGAR", "REGLA", "REINO", "REYES",
+            "RIFAS", "RIGOR", "ROLLO", "RONCO", "ROSCA", "RUGIR", "RUINA", "RUMOR", "RUTAS", "SABLE",
+            "SACOS", "SALAS", "SALVO", "SANAR", "SECTA", "SENDA", "SEÑAS", "SERES", "SERIE", "SIGNO",
+            "SOBRA", "SOCIO", "SOFAS", "SOGAS", "SONDA", "SORDO", "SUDAR", "SURCO", "TACTO", "TANTO",
+            "TAPON", "TAXIS", "TENAZ", "TEXTO", "TILDE", "TIMON", "TONOS", "TOPOS", "TORPE", "TOSER",
+            "TRAGO", "TRAMA", "TROPA", "TROZO", "TUBOS", "UNTAR", "USUAL", "VAGOS", "VAINA", "VALLA",
+            "VELOZ", "VENAS", "VENDA", "VERBO", "VIGOR", "VILLA", "VIVOS", "VOCAL", "ZURDA"
+        ];
+
+        // Se agregan a las listas existentes (sin duplicados y solo de 5 letras)
+        EXTRA_SECRET_WORDS.forEach(w => {
+            if (w.length === WORD_LENGTH && !SECRET_WORDS.includes(w)) SECRET_WORDS.push(w);
+        });
 
         // Cuántas palabras recientes se recuerdan para no repetirlas
-        const HISTORY_SIZE = Math.max(1, Math.min(60, SECRET_WORDS.length - 1));
+        const HISTORY_SIZE = Math.max(1, Math.min(100, SECRET_WORDS.length - 1));
         const HISTORY_KEY = "wordle-latino-historial";
 
         // Límite de partidas.
@@ -581,6 +642,10 @@
             // Y / Z
             "YEGUA", "YERBA", "YERNO", "ZORRO", "ZONAS", "ZURDO"
         ].filter(w => w.length === WORD_LENGTH));
+
+        [...EXTRA_SECRET_WORDS, ...EXTRA_VALID_WORDS].forEach(w => {
+            if (w.length === WORD_LENGTH) VALID_WORDS.add(w);
+        });
 
         const KEY_ROWS = [
             ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
