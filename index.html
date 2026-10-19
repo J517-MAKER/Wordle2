@@ -132,6 +132,8 @@
             height: 100vh;
             z-index: -1;
             pointer-events: none;
+            transform: translateZ(0);
+            will-change: transform;
         }
 
         button {
@@ -281,8 +283,6 @@
             user-select: none;
             background: var(--tile-bg);
             color: var(--tile-text);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
             transition: background-color 300ms, border-color 300ms, color 300ms;
         }
 
@@ -384,8 +384,6 @@
             /* ≥ 18.66px en negrita = "texto grande" WCAG */
             font-weight: 700;
             user-select: none;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
             box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.25);
             transition: background-color 200ms, color 200ms, transform 50ms;
         }
@@ -1157,9 +1155,14 @@
                 this.mode = storage.get(SKY_STORAGE_KEY) || "auto"; // 'auto' | 'day' | 'sunset' | 'night'
                 this.activePhase = "day"; // 'morning' | 'day' | 'sunset' | 'night'
 
+                this.isMobile = (window.innerWidth < 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+                this.targetFps = this.isMobile ? 36 : 60;
+                this.frameInterval = 1000 / this.targetFps;
+                this.lastRender = 0;
+
                 this.width = 0;
                 this.height = 0;
-                this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+                this.dpr = 1;
 
                 this.clouds = [];
                 this.stars = [];
@@ -1373,7 +1376,7 @@
 
             initStars() {
                 this.stars = [];
-                const count = 65;
+                const count = this.isMobile ? 32 : 65;
                 for (let i = 0; i < count; i++) {
                     const tintChoice = Math.random();
                     let color = "255, 255, 255";
@@ -1394,7 +1397,11 @@
 
             initClouds() {
                 this.clouds = [];
-                const layerDefs = [
+                const layerDefs = this.isMobile ? [
+                    { count: 2, scaleRange: [0.65, 0.85], speedRange: [0.12, 0.22], yRange: [0.06, 0.4] },
+                    { count: 3, scaleRange: [0.95, 1.25], speedRange: [0.28, 0.45], yRange: [0.15, 0.68] },
+                    { count: 2, scaleRange: [1.35, 1.6], speedRange: [0.55, 0.85], yRange: [0.28, 0.82] }
+                ] : [
                     { count: 3, scaleRange: [0.65, 0.85], speedRange: [0.12, 0.22], yRange: [0.06, 0.45] },
                     { count: 4, scaleRange: [0.95, 1.25], speedRange: [0.28, 0.45], yRange: [0.12, 0.72] },
                     { count: 3, scaleRange: [1.35, 1.7], speedRange: [0.55, 0.85], yRange: [0.25, 0.85] }
@@ -1451,7 +1458,11 @@
             resize() {
                 this.width = window.innerWidth;
                 this.height = window.innerHeight;
-                this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+                this.isMobile = (this.width < 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+                this.targetFps = this.isMobile ? 36 : 60;
+                this.frameInterval = 1000 / this.targetFps;
+                const maxDpr = this.isMobile ? 1.25 : 1.75;
+                this.dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
                 this.canvas.width = Math.floor(this.width * this.dpr);
                 this.canvas.height = Math.floor(this.height * this.dpr);
                 this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1629,7 +1640,13 @@
             }
 
             loop(now) {
-                const dt = Math.min(now - this.lastTime, 100);
+                const elapsed = now - this.lastRender;
+                if (elapsed < this.frameInterval) {
+                    this.animId = requestAnimationFrame(t => this.loop(t));
+                    return;
+                }
+                this.lastRender = now - (elapsed % this.frameInterval);
+                const dt = Math.min(elapsed, 100);
                 this.lastTime = now;
 
                 if (this.mode === "auto") {
