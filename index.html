@@ -452,67 +452,126 @@
             opacity: 1;
         }
 
-        /* ---------- Cuadro final (dialog nativo) ---------- */
-        .modal {
-            width: calc(100% - 32px);
-            max-width: 340px;
-            padding: 24px 22px;
-            border: 1px solid var(--tile-border);
-            border-radius: 16px;
-            background: var(--surface);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            color: var(--text);
-            text-align: center;
-            box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.3);
-            transition: background-color 400ms, border-color 400ms, color 400ms;
+        /* ---------- Cuadro final / Ventana emergente (Overlay) ---------- */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(var(--shadow-rgb), 0.55);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 250ms ease;
         }
 
-        .modal[open] {
+        #overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            position: relative;
+            width: calc(100% - 32px);
+            max-width: 350px;
+            padding: 32px 24px 26px;
+            border: 1px solid var(--tile-border);
+            border-radius: 20px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: var(--text);
+            text-align: center;
+            box-shadow: 0 16px 48px rgba(var(--shadow-rgb), 0.35);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            transform: scale(0.9);
+            transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 400ms, border-color 400ms, color 400ms;
         }
 
-        .modal::backdrop {
-            background: rgba(var(--shadow-rgb), 0.35);
-            backdrop-filter: blur(3px);
+        #overlay.show .modal {
+            transform: scale(1);
+        }
+
+        /* Tachita para cerrar la mini ventana */
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 1px solid rgba(var(--shadow-rgb), 0.2);
+            background: rgba(var(--surface-solid, 255, 255, 255), 0.4);
+            color: var(--heading);
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .modal-close:hover {
+            transform: scale(1.15);
+            background: rgba(var(--shadow-rgb), 0.18);
+            color: var(--heading-dark);
+        }
+
+        .modal-close:active {
+            transform: scale(0.9);
         }
 
         .modal h2 {
             margin: 0;
-            font-size: 1.6rem;
+            font-size: 1.7rem;
             color: var(--heading);
+            font-weight: 800;
         }
 
         .modal p {
             margin: 0;
             color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.4;
         }
 
         .modal #countdown {
             color: var(--heading);
             font-weight: 600;
             min-height: 1.2em;
+            font-size: 0.9rem;
         }
 
         .word-pill {
-            padding: 8px 16px;
-            border-radius: 10px;
+            display: inline-block;
+            padding: 8px 18px;
+            border-radius: 999px;
             font-weight: 800;
             letter-spacing: 0.2em;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
+            margin: 4px 0;
         }
 
         .word-pill.ok {
             background: var(--correct);
             color: var(--on-state);
+            box-shadow: 0 2px 10px rgba(var(--sky-rgb), 0.35);
         }
 
         .word-pill.ko {
             background: var(--danger);
             color: var(--danger-dark);
+            box-shadow: 0 2px 10px rgba(242, 184, 189, 0.35);
         }
 
         .modal-actions {
@@ -609,16 +668,18 @@
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="sr-status" class="sr-only" aria-live="polite"></div>
 
-    <dialog id="result-dialog" class="modal" aria-labelledby="result-title" aria-describedby="result-text">
-        <h2 id="result-title"></h2>
-        <p id="result-text"></p>
-        <span class="word-pill" id="result-word"></span>
-        <p id="countdown"></p>
-        <div class="modal-actions">
-            <button type="button" id="restart">Jugar de nuevo</button>
-            <button type="button" id="close-dialog" class="btn-secondary">Cerrar</button>
+    <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title" aria-describedby="result-text">
+        <div class="modal">
+            <button type="button" id="modal-close" class="modal-close" aria-label="Cerrar ventana" title="Cerrar">✕</button>
+            <h2 id="result-title"></h2>
+            <p id="result-text"></p>
+            <span class="word-pill" id="result-word"></span>
+            <p id="countdown"></p>
+            <div class="modal-actions">
+                <button type="button" id="restart">Jugar de nuevo</button>
+            </div>
         </div>
-    </dialog>
+    </div>
 
     <script type="module">
         // ================== Configuración ==================
@@ -784,13 +845,13 @@
         const toastEl = $("toast");
         const srStatusEl = $("sr-status");
         const playsEl = $("plays");
-        const dialogEl = $("result-dialog");
+        const overlayEl = $("overlay");
+        const modalCloseBtn = $("modal-close");
         const titleEl = $("result-title");
         const textEl = $("result-text");
         const pillEl = $("result-word");
         const countdownEl = $("countdown");
         const restartBtn = $("restart");
-        const closeDialogBtn = $("close-dialog");
         const skyCanvas = $("sky-canvas");
         const skyBtn = $("sky-btn");
         const skyIcon = $("sky-icon");
@@ -991,7 +1052,7 @@
         }
 
         // Actualiza el botón del cuadro final: habilitado o con cuenta regresiva
-        function refreshDialogButton() {
+        function refreshOverlayButton() {
             clearInterval(countdownTimer);
             if (!LIMIT_ENABLED) {
                 countdownEl.textContent = "La próxima partida tendrá otra palabra.";
@@ -1012,25 +1073,32 @@
             const unlockAt = Math.min(...store.plays.map(p => p.t)) + WINDOW_MS;
             const tick = () => {
                 const ms = unlockAt - Date.now();
-                if (ms <= 0) refreshDialogButton();
+                if (ms <= 0) refreshOverlayButton();
                 else countdownEl.textContent = `Próxima partida en ${formatTime(ms)}`;
             };
             tick();
             countdownTimer = setInterval(tick, 1000);
         }
 
-        function openDialog() {
-            refreshDialogButton();
-            if (!dialogEl.open) dialogEl.showModal();
+        function openOverlay() {
+            refreshOverlayButton();
+            overlayEl.classList.add("show");
+        }
+
+        function closeOverlay() {
+            overlayEl.classList.remove("show");
+            clearInterval(countdownTimer);
         }
 
         function showResult({ title, text, word = null, won = false }) {
             titleEl.textContent = title;
             textEl.textContent = text;
-            pillEl.hidden = !word;
             if (word) {
                 pillEl.textContent = word;
                 pillEl.className = `word-pill ${won ? "ok" : "ko"}`;
+                pillEl.style.display = "";
+            } else {
+                pillEl.style.display = "none";
             }
         }
 
@@ -1038,9 +1106,10 @@
             state.over = true;
             showResult({
                 title: "⏳ Límite alcanzado",
-                text: `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`
+                text: `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`,
+                word: null
             });
-            openDialog();
+            openOverlay();
         }
 
         // ================== Juego ==================
@@ -1055,7 +1124,7 @@
                 showLimit();
                 return;
             }
-            if (dialogEl.open) dialogEl.close(); // el evento "close" detiene la cuenta regresiva
+            closeOverlay();
             resetGame(pickSecret());
             updatePlaysInfo();
         }
@@ -1631,9 +1700,9 @@
 
         function handleKey(key) {
             if (state.busy) return;
-            // Si el cuadro final se cerró con Esc para ver el tablero, cualquier tecla lo reabre
+            // Si el cuadro final se cerró con la tachita o Esc para ver el tablero, cualquier tecla lo reabre
             if (state.over) {
-                openDialog();
+                openOverlay();
                 return;
             }
             if (key === "ENTER") {
@@ -1749,7 +1818,7 @@
                 won
             });
             await wait(RESULT_DELAY);
-            openDialog();
+            openOverlay();
         }
 
         function normalizeKey(key) {
@@ -1759,7 +1828,17 @@
 
         // ================== Eventos ==================
         document.addEventListener("keydown", e => {
-            if (e.ctrlKey || e.metaKey || e.altKey || dialogEl.open) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (overlayEl.classList.contains("show")) {
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    closeOverlay();
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!restartBtn.disabled) newGame();
+                }
+                return;
+            }
             // Un botón con foco (navegación con Tab) responde de forma nativa
             if ((e.key === "Enter" || e.key === " ") && e.target.closest?.("button")) return;
 
@@ -1783,9 +1862,11 @@
             handleKey(btn.dataset.key);
         });
 
+        modalCloseBtn.addEventListener("click", closeOverlay);
+        overlayEl.addEventListener("click", e => {
+            if (e.target === overlayEl) closeOverlay();
+        });
         restartBtn.addEventListener("click", newGame);
-        closeDialogBtn.addEventListener("click", () => dialogEl.close());
-        dialogEl.addEventListener("close", () => clearInterval(countdownTimer));
 
         init();
     </script>
