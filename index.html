@@ -3,83 +3,113 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f0f4f8">
+    <meta name="description" content="Wordle en español latino: adivina la palabra de 5 letras en 6 intentos.">
     <title>Wordle 2</title>
     <style>
         :root {
-            /* Paleta: verde pastel + celeste sobre azul pizarra profundo */
-            --bg: #0f1a24;
-            --bg-glow: #1b3045;
-            --surface: #172736;
-            --text: #eaf6ff;
-            --muted: #8fa6ba;
+            /* Paleta "cielo nublado": azul cielo + lavanda + gris nube sobre fondo claro.
+               Los tonos de estado están levemente profundizados para que el texto blanco
+               cumpla contraste WCAG para texto grande (≥ 3:1). */
+            --bg: #f0f4f8;
+            --bg-glow: #ffffff;
+            --surface: #ffffff;
+            --text: #333333;
+            --heading: #5a6e85;
+            --heading-dark: #48596c;
+            --muted: #5f7181;
 
-            --green: #9ee6be;
-            /* verde pastel */
-            --green-dark: #12351f;
-            /* texto sobre verde */
-            --sky: #8fd3f4;
-            /* celeste */
-            --sky-dark: #0d2b3e;
-            /* texto sobre celeste */
+            --correct: #6b95c0;         /* azul cielo */
+            --present: #9a86d2;         /* lavanda */
+            --absent: #7d8c97;          /* gris nube oscuro */
+            --on-state: #ffffff;        /* texto sobre los estados */
+            --sky-rgb: 107, 149, 192;
+            --lavender-rgb: 154, 134, 210;
+            --shadow-rgb: 90, 110, 133;
 
-            --tile-border: #2f4559;
-            --tile-border-filled: #8fd3f4;
-            --key: #35506a;
-            --absent: #22313f;
-            --absent-text: #7f93a6;
-            --danger: #f6b5b5;
-            --danger-dark: #4a1414;
+            --tile-bg: #ffffff;
+            --tile-border: #b5c2cd;
+            --tile-text: #5a6e85;
+            --key: #d1d8e0;
+            --key-text: #333333;
+            --disabled: #e3e8ee;
+            --danger: #f2b8bd;
+            --danger-dark: #6b1f26;
 
-            --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100vh - 340px) / 6.6));
+            --radius: 8px;
+            --radius-key: 4px;
+            --flip-duration: 500ms;     /* JS lo sobrescribe para mantenerse sincronizado */
+
+            /* Alto de ventana: vh como respaldo, dvh si el navegador lo soporta */
+            --vh: 100vh;
+            --tile: min(62px, calc((100vw - 60px) / 5.4), calc((var(--vh) - 340px) / 6.6));
         }
 
         @supports (height: 100dvh) {
             :root {
-                --tile: min(62px, calc((100vw - 60px) / 5.4), calc((100dvh - 340px) / 6.6));
+                --vh: 100dvh;
             }
         }
 
-        * {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
         }
 
-        html,
-        body {
-            margin: 0;
-            padding: 0;
+        html {
             background-color: var(--bg);
             color: var(--text);
-            font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, system-ui, sans-serif;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior: none;
         }
 
         body {
-            height: 100vh;
-            height: 100dvh;
+            margin: 0;
+            height: var(--vh);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            background: radial-gradient(circle at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
+            /* Claro arriba, como luz entre nubes */
+            background: radial-gradient(ellipse at 50% -10%, var(--bg-glow) 0%, var(--bg) 60%);
+            touch-action: manipulation;  /* evita el zoom por doble toque sin bloquear el zoom accesible */
+        }
+
+        button {
+            font: inherit;
+            cursor: pointer;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--present);
+            outline-offset: 2px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
         }
 
         /* ---------- Encabezado ---------- */
         header {
             text-align: center;
             padding: 10px 12px 8px;
-            border-bottom: 1px solid rgba(143, 211, 244, 0.18);
+            border-bottom: 1px solid rgba(var(--shadow-rgb), 0.15);
         }
 
-        header h1 {
+        h1 {
             margin: 0;
             font-size: clamp(1.5rem, 6vw, 2.2rem);
             letter-spacing: 0.15em;
             font-weight: 800;
-            background: linear-gradient(90deg, var(--green), var(--sky));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: var(--heading);
         }
 
         #plays {
@@ -96,27 +126,28 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            border: 2px solid var(--sky);
+            border: 2px solid var(--correct);
             opacity: 0.6;
         }
 
         .dot.on {
-            background: var(--green);
-            border-color: var(--green);
+            background: var(--correct);
             opacity: 1;
-            box-shadow: 0 0 6px rgba(158, 230, 190, 0.6);
+            box-shadow: 0 0 6px rgba(var(--sky-rgb), 0.5);
         }
 
-        #plays .label {
-            margin-left: 4px;
+        .subtitle {
+            margin: 4px 0 0;
+            font-size: 0.85rem;
+            font-style: italic;
+            color: var(--muted);
         }
 
         /* ---------- Tablero ---------- */
         main {
-            flex: 1 1 auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            flex: 1;
+            display: grid;
+            place-items: center;
             padding: 10px;
             min-height: 0;
         }
@@ -133,88 +164,58 @@
         }
 
         .row.shake {
-            animation: shake .45s;
+            animation: shake 450ms;
         }
 
         .tile {
-            width: var(--tile);
             height: var(--tile);
             border: 2px solid var(--tile-border);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: var(--radius);
+            display: grid;
+            place-items: center;
             font-size: calc(var(--tile) * 0.55);
             font-weight: 800;
             user-select: none;
-            background: rgba(255, 255, 255, 0.02);
+            background: var(--tile-bg);
+            color: var(--tile-text);
         }
 
         .tile.filled {
-            border-color: var(--tile-border-filled);
-            box-shadow: 0 0 8px rgba(143, 211, 244, 0.25);
-            animation: pop .1s;
+            border-color: var(--correct);
+            box-shadow: 0 2px 8px rgba(var(--sky-rgb), 0.2);
+            animation: pop 100ms;
         }
 
         .tile.flip {
-            animation: flip .5s ease forwards;
+            animation: flip var(--flip-duration) ease;
         }
 
-        .tile.correct {
-            background: var(--green);
-            border-color: var(--green);
-            color: var(--green-dark);
-            box-shadow: 0 0 10px rgba(158, 230, 190, 0.35);
-        }
-
-        .tile.present {
-            background: var(--sky);
-            border-color: var(--sky);
-            color: var(--sky-dark);
-            box-shadow: 0 0 10px rgba(143, 211, 244, 0.3);
-        }
-
+        /* Estados: misma especificidad que .tile.filled y declarados después, sin !important */
+        .tile.correct,
+        .tile.present,
         .tile.absent {
-            background: var(--absent);
-            border-color: var(--absent);
-            color: var(--absent-text);
-            box-shadow: none;
+            color: var(--on-state);
+            border-color: transparent;
+            box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.18);
         }
+
+        .tile.correct { background: var(--correct); }
+        .tile.present { background: var(--present); }
+        .tile.absent { background: var(--absent); box-shadow: none; }
 
         @keyframes pop {
-            50% {
-                transform: scale(1.12);
-            }
+            50% { transform: scale(1.12); }
         }
 
         @keyframes flip {
-            50% {
-                transform: rotateX(90deg);
-            }
+            50% { transform: rotateX(90deg); }
         }
 
         @keyframes shake {
-
-            10%,
-            90% {
-                transform: translateX(-2px);
-            }
-
-            20%,
-            80% {
-                transform: translateX(4px);
-            }
-
-            30%,
-            50%,
-            70% {
-                transform: translateX(-6px);
-            }
-
-            40%,
-            60% {
-                transform: translateX(6px);
-            }
+            10%, 90% { transform: translateX(-2px); }
+            20%, 80% { transform: translateX(4px); }
+            30%, 50%, 70% { transform: translateX(-6px); }
+            40%, 60% { transform: translateX(6px); }
         }
 
         /* ---------- Teclado ---------- */
@@ -238,48 +239,46 @@
             flex: 1 1 0;
             max-width: 46px;
             height: 56px;
-            border: none;
-            border-radius: 8px;
-            background: var(--key);
-            color: var(--text);
-            font-family: inherit;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            user-select: none;
             padding: 0;
-            transition: background-color .2s, color .2s, transform .05s;
-        }
-
-        .key.wide {
-            flex: 1.6 1 0;
-            max-width: 74px;
-            font-size: 0.75rem;
-        }
-
-        .key.enter {
-            background: linear-gradient(135deg, var(--green), var(--sky));
-            color: var(--sky-dark);
-        }
-
-        .key.correct {
-            background: var(--green);
-            color: var(--green-dark);
-        }
-
-        .key.present {
-            background: var(--sky);
-            color: var(--sky-dark);
-        }
-
-        .key.absent {
-            background: var(--absent);
-            color: var(--absent-text);
+            border: none;
+            border-radius: var(--radius-key);
+            background: var(--key);
+            color: var(--key-text);
+            font-size: 1.2rem;           /* ≥ 18.66px en negrita = "texto grande" WCAG */
+            font-weight: 700;
+            user-select: none;
+            box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.25);
+            transition: background-color 200ms, color 200ms, transform 50ms;
         }
 
         .key:active {
             transform: scale(0.95);
         }
+
+        .key.wide {
+            flex-grow: 1.6;
+            max-width: 74px;
+            font-size: 0.75rem;
+        }
+
+        .key.backspace {
+            font-size: 1.3rem;
+        }
+
+        .key.enter {
+            background: var(--heading);
+            color: var(--on-state);
+        }
+
+        .key.correct,
+        .key.present,
+        .key.absent {
+            color: var(--on-state);
+        }
+
+        .key.correct { background: var(--correct); }
+        .key.present { background: var(--present); }
+        .key.absent { background: var(--absent); }
 
         /* ---------- Mensajes ---------- */
         #toast {
@@ -290,66 +289,67 @@
             width: max-content;
             max-width: calc(100vw - 32px);
             text-align: center;
-            background: var(--sky);
-            color: var(--sky-dark);
+            background: var(--heading);
+            color: var(--on-state);
             font-weight: 700;
             padding: 10px 16px;
-            border-radius: 8px;
+            border-radius: var(--radius);
             opacity: 0;
             pointer-events: none;
-            transition: opacity .25s;
+            transition: opacity 250ms;
             z-index: 50;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.3);
         }
 
         #toast.show {
             opacity: 1;
         }
 
-        #overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 12, 18, 0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 40;
-            padding: 16px;
-        }
-
-        #overlay.show {
-            display: flex;
-        }
-
+        /* ---------- Cuadro final (dialog nativo) ---------- */
         .modal {
-            background: var(--surface);
-            border: 1px solid rgba(143, 211, 244, 0.3);
-            border-radius: 16px;
-            padding: 24px 22px;
-            width: 100%;
+            width: calc(100% - 32px);
             max-width: 340px;
+            padding: 24px 22px;
+            border: 1px solid var(--tile-border);
+            border-radius: 16px;
+            background: var(--surface);
+            color: var(--text);
             text-align: center;
+            box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.3);
+        }
+
+        .modal[open] {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal::backdrop {
+            background: rgba(var(--shadow-rgb), 0.35);
+            backdrop-filter: blur(3px);
         }
 
         .modal h2 {
             margin: 0;
             font-size: 1.6rem;
+            color: var(--heading);
         }
 
         .modal p {
             margin: 0;
-            color: #cfe3f2;
+            color: var(--muted);
         }
 
-        #countdown {
-            color: var(--sky);
+        .modal #countdown {
+            color: var(--heading);
             font-weight: 600;
             min-height: 1.2em;
+        }
+
+        .modal .hint {
+            font-size: 0.85rem;
+            font-style: italic;
         }
 
         .word-pill {
@@ -361,8 +361,8 @@
         }
 
         .word-pill.ok {
-            background: var(--green);
-            color: var(--green-dark);
+            background: var(--correct);
+            color: var(--on-state);
         }
 
         .word-pill.ko {
@@ -379,44 +379,46 @@
         }
 
         .modal button {
-            background: linear-gradient(135deg, var(--green), var(--sky));
-            color: var(--sky-dark);
+            background: var(--heading);
+            color: var(--on-state);
             border: 2px solid transparent;
             border-radius: 10px;
             padding: 10px 20px;
-            font-size: 1rem;
             font-weight: 800;
-            cursor: pointer;
-            font-family: inherit;
+        }
+
+        .modal button:hover {
+            background: var(--heading-dark);
         }
 
         .modal button.btn-secondary {
             background: transparent;
-            color: var(--sky);
-            border-color: var(--sky);
+            color: var(--heading);
+            border-color: var(--tile-border);
         }
 
         .modal button.btn-secondary:hover {
-            background: rgba(143, 211, 244, 0.12);
+            background: rgba(var(--lavender-rgb), 0.12);
+            border-color: var(--present);
         }
 
         .modal button:disabled {
-            background: #2c3d4e;
-            color: var(--muted);
+            background: var(--disabled);
+            color: var(--heading-dark);
+            border: 2px dashed var(--tile-border);
             cursor: not-allowed;
         }
 
         @media (max-width: 400px) {
-            .key {
-                height: 50px;
-                font-size: 0.9rem;
-            }
-
             .kb-row {
                 gap: 4px;
             }
 
-            .key.wide {
+            .key {
+                height: 50px;
+            }
+
+            .key.wide:not(.backspace) {
                 font-size: 0.65rem;
             }
         }
@@ -426,6 +428,15 @@
                 height: 42px;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 1ms !important;
+                transition-duration: 1ms !important;
+            }
+        }
     </style>
 </head>
 
@@ -433,118 +444,42 @@
 
     <header>
         <h1>WORDLE 2</h1>
-        <div id="plays"></div>
-        <h3>Asi es Lucia este Wordle si tiene mas de un intento</h3>
+        <div id="plays" aria-live="polite"></div>
+        <p class="subtitle">Así es, Lucia: este Wordle sí tiene más de un intento</p>
     </header>
 
     <main>
-        <div class="board" id="board"></div>
+        <div class="board" id="board" role="group" aria-label="Tablero de intentos"></div>
     </main>
 
-    <div id="keyboard"></div>
-    <div id="toast"></div>
+    <div id="keyboard" role="group" aria-label="Teclado"></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="sr-status" class="sr-only" aria-live="polite"></div>
 
-    <div id="overlay">
-        <div class="modal">
-            <h2 id="result-title"></h2>
-            <p id="result-text"></p>
-            <span class="word-pill" id="result-word"></span>
-            <p id="countdown"></p>
-            <div class="modal-actions">
-                <button id="restart">Jugar de nuevo</button>
-                <button id="close-tab" class="btn-secondary">Cerrar pestaña</button>
-            </div>
+    <dialog id="result-dialog" class="modal" aria-labelledby="result-title" aria-describedby="result-text">
+        <h2 id="result-title"></h2>
+        <p id="result-text"></p>
+        <span class="word-pill" id="result-word"></span>
+        <p id="countdown"></p>
+        <div class="modal-actions">
+            <button type="button" id="restart">Jugar de nuevo</button>
+            <button type="button" id="close-tab" class="btn-secondary">Cerrar pestaña</button>
         </div>
-    </div>
+        <p id="close-hint" class="hint" hidden>Tu navegador no permite cerrarla automáticamente. Ciérrala manualmente.</p>
+    </dialog>
 
-    <script>
+    <script type="module">
         // ================== Configuración ==================
         const WORD_LENGTH = 5;
         const MAX_ATTEMPTS = 6;
-        const FLIP_DELAY = 250;
+        const WORD_RE = new RegExp(`^[A-ZÑ]{${WORD_LENGTH}}$`);
+        const LETTER_RE = /^[A-ZÑ]$/;
 
-        // Palabras secretas (5 letras, español latino). Cada partida elige una al azar
-        // y no repite ninguna de las últimas HISTORY_SIZE palabras que ya salieron.
-        const SECRET_WORDS = [
-            "ABEJA", "AMIGO", "ANGEL", "ARBOL", "ARENA", "ARETE", "ARROZ", "ASADO", "AVION", "AYUDA",
-            "BAILE", "BALDE", "BANCO", "BARCO", "BESOS", "BLUSA", "BOLSA", "BOTAS", "BRAZO", "BRISA",
-            "BROMA", "BRUJA", "BURRO", "CABRA", "CACAO", "CALLE", "CALOR", "CAMPO", "CANOA", "CARNE",
-            "CARRO", "CARTA", "CEBRA", "CERDO", "CERRO", "CHILE", "CIELO", "CIRCO", "CLAVE", "COLOR",
-            "CORAL", "COSTA", "CUATE", "CUEVA", "DANZA", "DISCO", "DULCE", "ELOTE", "ERIZO", "FALDA",
-            "FERIA", "FLACO", "FRESA", "FRUTA", "FUEGO", "GALLO", "GATOS", "GENTE", "GLOBO", "GORRA",
-            "GRUPO", "GUSTO", "HIELO", "HOGAR", "HOJAS", "HORNO", "HOTEL", "HUEVO", "HUMOR", "ISLAS",
-            "JABON", "JAULA", "JOVEN", "JUEGO", "JUGOS", "LAPIZ", "LECHE", "LIBRO", "LIMON", "LINDO",
-            "LLAVE", "LUCHA", "LUNAR", "MADRE", "MAGIA", "MANGO", "MANOS", "MARCO", "MAREA", "METRO",
-            "MIEDO", "MONTE", "MOSCA", "MOTOR", "MUNDO", "MUSEO", "NARIZ", "NIEVE", "NOCHE", "NORTE",
-            "NOVIA", "NUBES", "OLIVO", "OREJA", "OTOÑO", "OVEJA", "PADRE", "PALTA", "PAPAS", "PAPEL",
-            "PATIO", "PERRO", "PIANO", "PLATA", "PLAYA", "PLAZA", "PLUMA", "POLLO", "PULPO", "QUESO",
-            "RADIO", "RATON", "RELOJ", "RISAS", "RUEDA", "SABOR", "SALSA", "SELVA", "SILLA", "SUEÑO",
-            "TACOS", "TARDE", "TECHO", "TIGRE", "TORRE", "TORTA", "TRAJE", "TRIGO", "VACAS", "VALLE",
-            "VELAS", "VERDE", "VIAJE", "VUELO", "YEGUA", "ZORRO"
-        ];
-
-        // ================== Palabras adicionales ==================
-        // Nuevas palabras secretas (también se aceptan como intento)
-        const EXTRA_SECRET_WORDS = [
-            "ABRIL", "ACTOR", "AGUJA", "ALDEA", "ANCLA", "ARAÑA", "AREPA", "ATAJO", "AVENA", "BALON",
-            "BARBA", "BARRO", "BOLSO", "BOMBA", "BORDE", "BOTON", "BUHOS", "BUZON", "CABLE", "CAJON",
-            "CALDO", "CANAL", "CANTO", "CARPA", "CASCO", "CEDRO", "CEJAS", "CESTA", "CHIVO", "CHOZA",
-            "CINCO", "CINTA", "CLIMA", "COBRE", "COCOS", "CODOS", "COFRE", "COJIN", "CORTE", "CREMA",
-            "CUERO", "DARDO", "DATIL", "DEDOS", "DOLAR", "DRAMA", "DUCHA", "DUNAS", "ENANO", "ENERO",
-            "FAROL", "FECHA", "FINCA", "FOCAS", "FOCOS", "FRENO", "GANSO", "GARZA", "GORRO", "GRANO",
-            "GRUTA", "GUISO", "HABAS", "HACHA", "HEROE", "HIENA", "HIGOS", "HONGO", "HUESO", "JAMON",
-            "JARRA", "JOYAS", "JULIO", "JUNIO", "KOALA", "LANZA", "LEONA", "LIBRA", "LICOR", "LIRIO",
-            "LLAMA", "LOBOS", "LOROS", "MALTA", "MANTA", "MAPAS", "MARZO", "MATES", "MELON", "MENTA",
-            "MILLA", "MONJA", "MONOS", "MORAS", "MORSA", "MUJER", "MULAS", "MURAL", "MUSGO", "MUSLO",
-            "NIDOS", "NIETO", "NOPAL", "NUEVE", "OLIVA", "OSTRA", "PALMA", "PAMPA", "PANDA", "PAÑAL",
-            "PATOS", "PAVOS", "PECES", "PEINE", "PERAS", "PERLA", "PESAS", "PINOS", "PIÑAS", "PISCO",
-            "PIZZA", "PLATO", "POEMA", "POETA", "POTRO", "PRADO", "PRIMO", "PUMAS", "PUNTA", "RAMAS",
-            "RANAS", "RAYOS", "REINA", "REMOS", "RIÑON", "ROBLE", "ROBOT", "ROCAS", "RODEO", "ROSAS",
-            "RUBIO", "SABIO", "SALON", "SAMBA", "SAPOS", "SAUCE", "SELLO", "SIETE", "SOPAS", "SUSTO",
-            "TALLO", "TAMAL", "TANGO", "TAPIZ", "TECLA", "TELAS", "TENIS", "TIZAS", "TOROS", "TRAPO",
-            "TRECE", "TRIBU", "TUCAN", "TUNEL", "VAGON", "VASOS", "VINOS", "VIRUS", "VOCES", "YATES",
-            "YEMAS", "YUCAS", "ZANJA"
-        ];
-
-        // Nuevas palabras aceptadas solo como intento
-        const EXTRA_VALID_WORDS = [
-            "ABONO", "ACASO", "ACERA", "ACIDO", "ADIOS", "ADOBE", "AGRIO", "AGUAS", "AIRES", "ALETA",
-            "ALGAS", "ALIAS", "ALZAR", "AMADO", "AMBAR", "ANEXO", "ANTRO", "APOYO", "ARDOR", "ARMAS",
-            "ARPON", "ASILO", "ASTRO", "ATROZ", "AULAS", "BAJOS", "BALAS", "BALSA", "BAÑAR", "BAÑOS",
-            "BARES", "BASES", "BATAS", "BECAS", "BOLAS", "BOTES", "BUFON", "BURLA", "BUSTO", "CABOS",
-            "CAIDA", "CALVO", "CANAS", "CAPAZ", "CARAS", "CARGA", "CAZAR", "CELOS", "CERCO", "CHAVO",
-            "CICLO", "CIEGO", "CIFRA", "COCER", "COLAS", "COLMO", "CONOS", "COPIA", "COSER", "CRUDO",
-            "CULTO", "CUOTA", "CURAR", "DADOS", "DEBIL", "DENSO", "DIETA", "DIGNO", "DOBLE", "DORSO",
-            "DOSIS", "DUELO", "ENOJO", "ESPIA", "ETICA", "FALTA", "FARSA", "FATAL", "FAVOR", "FELIZ",
-            "FEROZ", "FICHA", "FLUJO", "FOBIA", "FRIOS", "FUGAZ", "FUSIL", "GALAN", "GANAS", "GASES",
-            "GEMAS", "GIROS", "GOLES", "GOMAS", "GOZAR", "GUIAS", "GUION", "HABIL", "HEBRA", "HIMNO",
-            "HUECO", "HUMOS", "IDEAL", "JALAR", "JAMAS", "JERGA", "JUNTA", "LABOR", "LACIO", "LANAS",
-            "LAPSO", "LAZOS", "LEGAL", "LEGUA", "LEMAS", "LENTE", "LIDER", "LIGAR", "LLAGA", "LOGRO",
-            "LOTES", "LUCES", "LUJOS", "MAGOS", "MALLA", "MAMBO", "MANDO", "MANIA", "MARES", "MECER",
-            "MEDIR", "MENOR", "MENTE", "MICRO", "MIMOS", "MINAS", "MISAS", "MIXTO", "MOCOS", "MOLDE",
-            "MOTEL", "MOVER", "MUDOS", "MULTA", "MUROS", "MUTUO", "NABOS", "NADIE", "NAIPE", "NALGA",
-            "NAVES", "NECIO", "NEGAR", "NEGRO", "NIETA", "NINFA", "NORMA", "OBESO", "OBVIO", "OCASO",
-            "OPACO", "OSADO", "OSITO", "OVALO", "PACTO", "PAGOS", "PALCO", "PANEL", "PAÑOS", "PASOS",
-            "PATAS", "PATIN", "PECAR", "PEDAL", "PEGAR", "PELAR", "PENAS", "PEÑAS", "PESOS", "PICOS",
-            "PINZA", "PIPAS", "PLAGA", "PLAZO", "PLENO", "PLOMO", "POLAR", "POLEA", "POLOS", "POMPA",
-            "POROS", "POSTE", "POZOS", "PRESA", "PRIMA", "PROSA", "PUROS", "QUEJA", "RABIA", "RACHA",
-            "RADAR", "RAROS", "RATAS", "RAYAS", "RECTO", "REDES", "REGAR", "REGLA", "REINO", "REYES",
-            "RIFAS", "RIGOR", "ROLLO", "RONCO", "ROSCA", "RUGIR", "RUINA", "RUMOR", "RUTAS", "SABLE",
-            "SACOS", "SALAS", "SALVO", "SANAR", "SECTA", "SENDA", "SEÑAS", "SERES", "SERIE", "SIGNO",
-            "SOBRA", "SOCIO", "SOFAS", "SOGAS", "SONDA", "SORDO", "SUDAR", "SURCO", "TACTO", "TANTO",
-            "TAPON", "TAXIS", "TENAZ", "TEXTO", "TILDE", "TIMON", "TONOS", "TOPOS", "TORPE", "TOSER",
-            "TRAGO", "TRAMA", "TROPA", "TROZO", "TUBOS", "UNTAR", "USUAL", "VAGOS", "VAINA", "VALLA",
-            "VELOZ", "VENAS", "VENDA", "VERBO", "VIGOR", "VILLA", "VIVOS", "VOCAL", "ZURDA"
-        ];
-
-        // Se agregan a las listas existentes (sin duplicados y solo de 5 letras)
-        EXTRA_SECRET_WORDS.forEach(w => {
-            if (w.length === WORD_LENGTH && !SECRET_WORDS.includes(w)) SECRET_WORDS.push(w);
-        });
-
-        // Cuántas palabras recientes se recuerdan para no repetirlas
-        const HISTORY_SIZE = Math.max(1, Math.min(100, SECRET_WORDS.length - 1));
-        const HISTORY_KEY = "wordle-latino-historial";
+        const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const FLIP_STAGGER = REDUCED_MOTION ? 0 : 250;   // retraso entre fichas
+        const FLIP_DURATION = REDUCED_MOTION ? 0 : 500;  // debe coincidir con --flip-duration
+        const RESULT_DELAY = REDUCED_MOTION ? 0 : 400;
+        document.documentElement.style.setProperty("--flip-duration", `${FLIP_DURATION}ms`);
 
         // Límite de partidas.
         // false = modo prueba: partidas ilimitadas, sin tiempo de espera.
@@ -553,271 +488,248 @@
         const MAX_PLAYS = 2;
         const WINDOW_MS = 24 * 60 * 60 * 1000;
         const STORAGE_KEY = "wordle-latino-partidas";
+        const HISTORY_KEY = "wordle-latino-historial";
 
-        // Palabras aceptadas como intento: español latinoamericano, sin tildes (excepto la Ñ).
-        // Puedes agregar más palabras a esta lista.
-        const VALID_WORDS = new Set([
-            ...SECRET_WORDS,
-            // A
-            "ABEJA", "ABRIR", "ACERO", "ACTOR", "AGUJA", "AHORA", "AJENO", "ALAMO", "ALBUM", "ALDEA",
-            "ALGUN", "ALMAS", "ALTAR", "ALTOS", "AMIGO", "AMIGA", "AMBOS", "ANCHO", "ANDAR", "ANGEL",
-            "ANIMO", "ANTES", "AÑEJO", "APODO", "ARBOL", "ARCOS", "ARDER", "ARENA", "ARETE", "ARMAR",
-            "AROMA", "ARROZ", "ASADO", "ATAJO", "ATLAS", "ATRAS", "AUTOS", "AVION", "AVISO", "AYUDA",
-            // B
-            "BAHIA", "BAILE", "BAJAR", "BALDE", "BANCO", "BANDA", "BARBA", "BARCO", "BARRA", "BARRO",
-            "BASTA", "BEBER", "BEBES", "BELLO", "BESAR", "BESOS", "BICHO", "BLUSA", "BOCAS", "BODAS",
-            "BOLSA", "BOMBA", "BORDE", "BOTAS", "BOTON", "BRAVO", "BRAZO", "BRISA", "BROMA", "BRUJA",
-            "BUENO", "BURRO", "BUSCA", "BUZON",
-            // C
-            "CABRA", "CACAO", "CAFES", "CAJAS", "CALLE", "CALMA", "CALOR", "CAMAS", "CAMPO", "CANAL",
-            "CANOA", "CANTO", "CAÑON", "CARNE", "CARRO", "CARTA", "CASAS", "CAUSA", "CEBRA", "CELDA",
-            "CENAR", "CERCA", "CERDO", "CERRO", "CHICO", "CHICA", "CHILE", "CHIVO", "CHELA", "CHAMO",
-            "CIELO", "CIRCO", "CITAS", "CLARO", "CLASE", "CLAVE", "CLAVO", "COBRE", "COLOR", "COMER",
-            "COMUN", "COPAS", "CORAL", "CORTO", "COSAS", "COSTA", "CREER", "CRUCE", "CUATE", "CUERO",
-            "CUEVA", "CULPA", "CURVA",
-            // D
-            "DAMAS", "DANZA", "DATOS", "DEBER", "DECIR", "DEDOS", "DEJAR", "DESDE", "DICHA", "DIOSA",
-            "DISCO", "DOLOR", "DONDE", "DRAMA", "DUCHA", "DUDAS", "DUEÑO", "DULCE", "DURAR",
-            // E
-            "ELOTE", "ENERO", "ENTRE", "ENVIO", "EPOCA", "ERIZO", "ERROR", "ESTAR", "ETAPA", "EXITO", "EXTRA",
-            // F
-            "FALDA", "FALLA", "FALSO", "FAROL", "FECHA", "FERIA", "FIBRA", "FIERA", "FIJAR", "FILAS",
-            "FINAL", "FIRMA", "FLACO", "FLOJO", "FLORA", "FLOTA", "FOCOS", "FONDO", "FORMA", "FOTOS",
-            "FRASE", "FRENO", "FRESA", "FRUTA", "FUEGO", "FUERA", "FUMAR", "FUNDA",
-            // G
-            "GALLO", "GANAR", "GANSO", "GARRA", "GASTO", "GATOS", "GENIO", "GENTE", "GIRAR", "GLOBO",
-            "GOLPE", "GORDO", "GORRA", "GOTAS", "GRADO", "GRAMO", "GRANO", "GRASA", "GRAVE", "GRITO",
-            "GRUPO", "GUAPO", "GUIAR", "GUISO", "GUSTO",
-            // H
-            "HABER", "HACER", "HACIA", "HARTO", "HELAR", "HECHO", "HIELO", "HIGOS", "HIJOS", "HILOS",
-            "HOGAR", "HOJAS", "HONDO", "HONOR", "HORAS", "HORNO", "HOTEL", "HUEVO", "HUMOR", "HURTO",
-            // I
-            "IDEAS", "IDOLO", "IGUAL", "IMPAR", "ISLAS",
-            // J
-            "JABON", "JAMON", "JARRA", "JAULA", "JEFES", "JOVEN", "JOYAS", "JUEGO", "JUGAR", "JUGOS",
-            "JUNTO", "JURAR", "JUSTO",
-            // L
-            "LABIO", "LADOS", "LAGOS", "LAPIZ", "LARGO", "LATAS", "LAVAR", "LECHE", "LEJOS", "LENTO",
-            "LETRA", "LIBRE", "LIBRO", "LIMON", "LINDO", "LINDA", "LINEA", "LISTA", "LISTO", "LLAMA",
-            "LLANO", "LLAVE", "LLENO", "LOCAL", "LOCOS", "LOMAS", "LUCHA", "LUGAR", "LUNAR", "LUNES",
-            // M
-            "MACHO", "MADRE", "MAGIA", "MALOS", "MAMAS", "MANGO", "MANOS", "MANTA", "MAPAS", "MARCA",
-            "MARCO", "MAREA", "MARZO", "MASAS", "MATAR", "MAYOR", "MEDIA", "MEDIO", "MEJOR", "MENOS",
-            "MENTA", "MESAS", "METAL", "METRO", "MIEDO", "MIRAR", "MISMO", "MITAD", "MODAS", "MOLER",
-            "MONTE", "MORAL", "MORIR", "MOSCA", "MOTOR", "MUCHO", "MUDAR", "MUELA", "MUNDO", "MUSEO",
-            // N
-            "NACER", "NADAR", "NAFTA", "NARIZ", "NIEVE", "NIÑOS", "NIÑAS", "NIVEL", "NOBLE", "NOCHE",
-            "NORTE", "NOTAS", "NOVIA", "NOVIO", "NUBES", "NUDOS", "NUERA", "NUEVO", "NUNCA",
-            // O
-            "OBRAS", "ODIAR", "OESTE", "OJALA", "OLIVO", "OLLAS", "ONDAS", "OPERA", "ORDEN", "OREJA",
-            "OTOÑO", "OVEJA",
-            // P
-            "PADRE", "PAGAR", "PALMA", "PALOS", "PALTA", "PANAL", "PANZA", "PAPAS", "PAPEL", "PARED",
-            "PARAR", "PARTE", "PASAR", "PASEO", "PASTA", "PASTO", "PATIO", "PATOS", "PAUSA", "PECHO",
-            "PEDIR", "PEINE", "PELEA", "PELOS", "PERAS", "PERLA", "PERRO", "PESAR", "PESCA", "PIANO",
-            "PIBES", "PICAR", "PIEZA", "PILAS", "PINTA", "PIÑAS", "PISAR", "PISOS", "PISTA", "PLACA",
-            "PLANO", "PLATA", "PLATO", "PLAYA", "PLAZA", "PLUMA", "POBRE", "POCOS", "PODER", "POLLO",
-            "POLVO", "PONER", "POTRO", "PRADO", "PRESO", "PRIMO", "PRISA", "PULPO", "PUNTO", "PUÑAL",
-            // Q
-            "QUESO", "QUIEN",
-            // R
-            "RADIO", "RAMAS", "RANAS", "RASGO", "RATON", "RAYOS", "RAZON", "REINA", "RELOJ", "REMAR",
-            "RENTA", "RESTO", "REZAR", "RICOS", "RIEGO", "RIFLE", "RIMAS", "RISAS", "RITMO", "ROBAR",
-            "ROBLE", "ROCAS", "RODAR", "ROJOS", "ROPAS", "ROSAS", "RUEDA", "RUIDO", "RUMBO",
-            // S
-            "SABER", "SABOR", "SACAR", "SALIR", "SALSA", "SALTO", "SALUD", "SANTO", "SECAR", "SEDAS",
-            "SEGUN", "SELVA", "SEÑAL", "SEÑOR", "SERIO", "SIETE", "SIGLO", "SILLA", "SITIO", "SOBRE",
-            "SOLAR", "SOLOS", "SONAR", "SOÑAR", "SUAVE", "SUBIR", "SUCIO", "SUDOR", "SUELO", "SUEÑO", "SUMAR",
-            // T
-            "TABLA", "TACOS", "TALLA", "TAPAS", "TARDE", "TAREA", "TARRO", "TAZAS", "TECHO", "TEJER",
-            "TEMOR", "TEMAS", "TENER", "TERCO", "TIBIO", "TIGRE", "TINTA", "TIRAR", "TOCAR", "TOMAR",
-            "TONTO", "TORRE", "TORTA", "TOROS", "TOTAL", "TRAER", "TRAJE", "TRAMO", "TRAPO", "TRATO",
-            "TRIGO", "TRUCO", "TUMBA", "TURNO",
-            // U
-            "UNICO", "UNION", "UNIDO", "USADO",
-            // V
-            "VACAS", "VACIO", "VAGON", "VALLE", "VALOR", "VAPOR", "VASOS", "VECES", "VEJEZ", "VELAS",
-            "VENIR", "VENTA", "VERDE", "VERSO", "VIAJE", "VIDAS", "VIEJO", "VISTA", "VIUDA", "VIVIR",
-            "VOLAR", "VOTAR", "VUELO",
-            // Y / Z
-            "YEGUA", "YERBA", "YERNO", "ZORRO", "ZONAS", "ZURDO"
-        ].filter(w => w.length === WORD_LENGTH));
+        // ================== Diccionario ==================
+        // Español latinoamericano, sin tildes (excepto la Ñ). Ordenadas alfabéticamente.
+        // Palabras que pueden salir como secreta (también se aceptan como intento).
+        const SECRET_WORDS = cleanWords([
+            "ABEJA", "ABRIL", "ACTOR", "AGUJA", "ALDEA", "AMIGO", "ANCLA", "ANGEL", "ARAÑA", "ARBOL",
+            "ARENA", "AREPA", "ARETE", "ARROZ", "ASADO", "ATAJO", "AVENA", "AVION", "AYUDA", "BAILE",
+            "BALDE", "BALON", "BANCO", "BARBA", "BARCO", "BARRO", "BESOS", "BLUSA", "BOLSA", "BOLSO",
+            "BOMBA", "BORDE", "BOTAS", "BOTON", "BRAZO", "BRISA", "BROMA", "BRUJA", "BUHOS", "BURRO",
+            "BUZON", "CABLE", "CABRA", "CACAO", "CAJON", "CALDO", "CALLE", "CALOR", "CAMPO", "CANAL",
+            "CANOA", "CANTO", "CARNE", "CARPA", "CARRO", "CARTA", "CASCO", "CEBRA", "CEDRO", "CEJAS",
+            "CERDO", "CERRO", "CESTA", "CHILE", "CHIVO", "CHOZA", "CIELO", "CINCO", "CINTA", "CIRCO",
+            "CLAVE", "CLIMA", "COBRE", "COCOS", "CODOS", "COFRE", "COJIN", "COLOR", "CORAL", "CORTE",
+            "COSTA", "CREMA", "CUATE", "CUERO", "CUEVA", "DANZA", "DARDO", "DATIL", "DEDOS", "DISCO",
+            "DOLAR", "DRAMA", "DUCHA", "DULCE", "DUNAS", "ELOTE", "ENANO", "ENERO", "ERIZO", "FALDA",
+            "FAROL", "FECHA", "FERIA", "FINCA", "FLACO", "FOCAS", "FOCOS", "FRENO", "FRESA", "FRUTA",
+            "FUEGO", "GALLO", "GANSO", "GARZA", "GATOS", "GENTE", "GLOBO", "GORRA", "GORRO", "GRANO",
+            "GRUPO", "GRUTA", "GUISO", "GUSTO", "HABAS", "HACHA", "HEROE", "HIELO", "HIENA", "HIGOS",
+            "HOGAR", "HOJAS", "HONGO", "HORNO", "HOTEL", "HUESO", "HUEVO", "HUMOR", "ISLAS", "JABON",
+            "JAMON", "JARRA", "JAULA", "JOVEN", "JOYAS", "JUEGO", "JUGOS", "JULIO", "JUNIO", "KOALA",
+            "LANZA", "LAPIZ", "LECHE", "LEONA", "LIBRA", "LIBRO", "LICOR", "LIMON", "LINDO", "LIRIO",
+            "LLAMA", "LLAVE", "LOBOS", "LOROS", "LUCHA", "LUNAR", "MADRE", "MAGIA", "MALTA", "MANGO",
+            "MANOS", "MANTA", "MAPAS", "MARCO", "MAREA", "MARZO", "MATES", "MELON", "MENTA", "METRO",
+            "MIEDO", "MILLA", "MONJA", "MONOS", "MONTE", "MORAS", "MORSA", "MOSCA", "MOTOR", "MUJER",
+            "MULAS", "MUNDO", "MURAL", "MUSEO", "MUSGO", "MUSLO", "NARIZ", "NIDOS", "NIETO", "NIEVE",
+            "NOCHE", "NOPAL", "NORTE", "NOVIA", "NUBES", "NUEVE", "OLIVA", "OLIVO", "OREJA", "OSTRA",
+            "OTOÑO", "OVEJA", "PADRE", "PALMA", "PALTA", "PAMPA", "PANDA", "PAÑAL", "PAPAS", "PAPEL",
+            "PATIO", "PATOS", "PAVOS", "PECES", "PEINE", "PERAS", "PERLA", "PERRO", "PESAS", "PIANO",
+            "PINOS", "PIÑAS", "PISCO", "PIZZA", "PLATA", "PLATO", "PLAYA", "PLAZA", "PLUMA", "POEMA",
+            "POETA", "POLLO", "POTRO", "PRADO", "PRIMO", "PULPO", "PUMAS", "PUNTA", "QUESO", "RADIO",
+            "RAMAS", "RANAS", "RATON", "RAYOS", "REINA", "RELOJ", "REMOS", "RIÑON", "RISAS", "ROBLE",
+            "ROBOT", "ROCAS", "RODEO", "ROSAS", "RUBIO", "RUEDA", "SABIO", "SABOR", "SALON", "SALSA",
+            "SAMBA", "SAPOS", "SAUCE", "SELLO", "SELVA", "SIETE", "SILLA", "SOPAS", "SUEÑO", "SUSTO",
+            "TACOS", "TALLO", "TAMAL", "TANGO", "TAPIZ", "TARDE", "TECHO", "TECLA", "TELAS", "TENIS",
+            "TIGRE", "TIZAS", "TOROS", "TORRE", "TORTA", "TRAJE", "TRAPO", "TRECE", "TRIBU", "TRIGO",
+            "TUCAN", "TUNEL", "VACAS", "VAGON", "VALLE", "VASOS", "VELAS", "VERDE", "VIAJE", "VINOS",
+            "VIRUS", "VOCES", "VUELO", "YATES", "YEGUA", "YEMAS", "YUCAS", "ZANJA", "ZORRO"
+        ]);
 
-        [...EXTRA_SECRET_WORDS, ...EXTRA_VALID_WORDS].forEach(w => {
-            if (w.length === WORD_LENGTH) VALID_WORDS.add(w);
-        });
+        // Palabras aceptadas solo como intento.
+        const GUESS_ONLY_WORDS = cleanWords([
+            "ABONO", "ABRIR", "ACASO", "ACERA", "ACERO", "ACIDO", "ADIOS", "ADOBE", "AGRIO", "AGUAS",
+            "AHORA", "AIRES", "AJENO", "ALAMO", "ALBUM", "ALETA", "ALGAS", "ALGUN", "ALIAS", "ALMAS",
+            "ALTAR", "ALTOS", "ALZAR", "AMADO", "AMBAR", "AMBOS", "AMIGA", "ANCHO", "ANDAR", "ANEXO",
+            "ANIMO", "ANTES", "ANTRO", "AÑEJO", "APODO", "APOYO", "ARCOS", "ARDER", "ARDOR", "ARMAR",
+            "ARMAS", "AROMA", "ARPON", "ASILO", "ASTRO", "ATLAS", "ATRAS", "ATROZ", "AULAS", "AUTOS",
+            "AVISO", "BAHIA", "BAJAR", "BAJOS", "BALAS", "BALSA", "BANDA", "BAÑAR", "BAÑOS", "BARES",
+            "BARRA", "BASES", "BASTA", "BATAS", "BEBER", "BEBES", "BECAS", "BELLO", "BESAR", "BICHO",
+            "BOCAS", "BODAS", "BOLAS", "BOTES", "BRAVO", "BUENO", "BUFON", "BURLA", "BUSCA", "BUSTO",
+            "CABOS", "CAFES", "CAIDA", "CAJAS", "CALMA", "CALVO", "CAMAS", "CANAS", "CAÑON", "CAPAZ",
+            "CARAS", "CARGA", "CASAS", "CAUSA", "CAZAR", "CELDA", "CELOS", "CENAR", "CERCA", "CERCO",
+            "CHAMO", "CHAVO", "CHELA", "CHICA", "CHICO", "CICLO", "CIEGO", "CIFRA", "CITAS", "CLARO",
+            "CLASE", "CLAVO", "COCER", "COLAS", "COLMO", "COMER", "COMUN", "CONOS", "COPAS", "COPIA",
+            "CORTO", "COSAS", "COSER", "CREER", "CRUCE", "CRUDO", "CULPA", "CULTO", "CUOTA", "CURAR",
+            "CURVA", "DADOS", "DAMAS", "DATOS", "DEBER", "DEBIL", "DECIR", "DEJAR", "DENSO", "DESDE",
+            "DICHA", "DIETA", "DIGNO", "DIOSA", "DOBLE", "DOLOR", "DONDE", "DORSO", "DOSIS", "DUDAS",
+            "DUELO", "DUEÑO", "DURAR", "ENOJO", "ENTRE", "ENVIO", "EPOCA", "ERROR", "ESPIA", "ESTAR",
+            "ETAPA", "ETICA", "EXITO", "EXTRA", "FALLA", "FALSO", "FALTA", "FARSA", "FATAL", "FAVOR",
+            "FELIZ", "FEROZ", "FIBRA", "FICHA", "FIERA", "FIJAR", "FILAS", "FINAL", "FIRMA", "FLOJO",
+            "FLORA", "FLOTA", "FLUJO", "FOBIA", "FONDO", "FORMA", "FOTOS", "FRASE", "FRIOS", "FUERA",
+            "FUGAZ", "FUMAR", "FUNDA", "FUSIL", "GALAN", "GANAR", "GANAS", "GARRA", "GASES", "GASTO",
+            "GEMAS", "GENIO", "GIRAR", "GIROS", "GOLES", "GOLPE", "GOMAS", "GORDO", "GOTAS", "GOZAR",
+            "GRADO", "GRAMO", "GRASA", "GRAVE", "GRITO", "GUAPO", "GUIAR", "GUIAS", "GUION", "HABER",
+            "HABIL", "HACER", "HACIA", "HARTO", "HEBRA", "HECHO", "HELAR", "HIJOS", "HILOS", "HIMNO",
+            "HONDO", "HONOR", "HORAS", "HUECO", "HUMOS", "HURTO", "IDEAL", "IDEAS", "IDOLO", "IGUAL",
+            "IMPAR", "JALAR", "JAMAS", "JEFES", "JERGA", "JUGAR", "JUNTA", "JUNTO", "JURAR", "JUSTO",
+            "LABIO", "LABOR", "LACIO", "LADOS", "LAGOS", "LANAS", "LAPSO", "LARGO", "LATAS", "LAVAR",
+            "LAZOS", "LEGAL", "LEGUA", "LEJOS", "LEMAS", "LENTE", "LENTO", "LETRA", "LIBRE", "LIDER",
+            "LIGAR", "LINDA", "LINEA", "LISTA", "LISTO", "LLAGA", "LLANO", "LLENO", "LOCAL", "LOCOS",
+            "LOGRO", "LOMAS", "LOTES", "LUCES", "LUGAR", "LUJOS", "LUNES", "MACHO", "MAGOS", "MALLA",
+            "MALOS", "MAMAS", "MAMBO", "MANDO", "MANIA", "MARCA", "MARES", "MASAS", "MATAR", "MAYOR",
+            "MECER", "MEDIA", "MEDIO", "MEDIR", "MEJOR", "MENOR", "MENOS", "MENTE", "MESAS", "METAL",
+            "MICRO", "MIMOS", "MINAS", "MIRAR", "MISAS", "MISMO", "MITAD", "MIXTO", "MOCOS", "MODAS",
+            "MOLDE", "MOLER", "MORAL", "MORIR", "MOTEL", "MOVER", "MUCHO", "MUDAR", "MUDOS", "MUELA",
+            "MULTA", "MUROS", "MUTUO", "NABOS", "NACER", "NADAR", "NADIE", "NAFTA", "NAIPE", "NALGA",
+            "NAVES", "NECIO", "NEGAR", "NEGRO", "NIETA", "NINFA", "NIÑAS", "NIÑOS", "NIVEL", "NOBLE",
+            "NORMA", "NOTAS", "NOVIO", "NUDOS", "NUERA", "NUEVO", "NUNCA", "OBESO", "OBRAS", "OBVIO",
+            "OCASO", "ODIAR", "OESTE", "OJALA", "OLLAS", "ONDAS", "OPACO", "OPERA", "ORDEN", "OSADO",
+            "OSITO", "OVALO", "PACTO", "PAGAR", "PAGOS", "PALCO", "PALOS", "PANAL", "PANEL", "PANZA",
+            "PAÑOS", "PARAR", "PARED", "PARTE", "PASAR", "PASEO", "PASOS", "PASTA", "PASTO", "PATAS",
+            "PATIN", "PAUSA", "PECAR", "PECHO", "PEDAL", "PEDIR", "PEGAR", "PELAR", "PELEA", "PELOS",
+            "PENAS", "PEÑAS", "PESAR", "PESCA", "PESOS", "PIBES", "PICAR", "PICOS", "PIEZA", "PILAS",
+            "PINTA", "PINZA", "PIPAS", "PISAR", "PISOS", "PISTA", "PLACA", "PLAGA", "PLANO", "PLAZO",
+            "PLENO", "PLOMO", "POBRE", "POCOS", "PODER", "POLAR", "POLEA", "POLOS", "POLVO", "POMPA",
+            "PONER", "POROS", "POSTE", "POZOS", "PRESA", "PRESO", "PRIMA", "PRISA", "PROSA", "PUNTO",
+            "PUÑAL", "PUROS", "QUEJA", "QUIEN", "RABIA", "RACHA", "RADAR", "RAROS", "RASGO", "RATAS",
+            "RAYAS", "RAZON", "RECTO", "REDES", "REGAR", "REGLA", "REINO", "REMAR", "RENTA", "RESTO",
+            "REYES", "REZAR", "RICOS", "RIEGO", "RIFAS", "RIFLE", "RIGOR", "RIMAS", "RITMO", "ROBAR",
+            "RODAR", "ROJOS", "ROLLO", "RONCO", "ROPAS", "ROSCA", "RUGIR", "RUIDO", "RUINA", "RUMBO",
+            "RUMOR", "RUTAS", "SABER", "SABLE", "SACAR", "SACOS", "SALAS", "SALIR", "SALTO", "SALUD",
+            "SALVO", "SANAR", "SANTO", "SECAR", "SECTA", "SEDAS", "SEGUN", "SENDA", "SEÑAL", "SEÑAS",
+            "SEÑOR", "SERES", "SERIE", "SERIO", "SIGLO", "SIGNO", "SITIO", "SOBRA", "SOBRE", "SOCIO",
+            "SOFAS", "SOGAS", "SOLAR", "SOLOS", "SONAR", "SONDA", "SOÑAR", "SORDO", "SUAVE", "SUBIR",
+            "SUCIO", "SUDAR", "SUDOR", "SUELO", "SUMAR", "SURCO", "TABLA", "TACTO", "TALLA", "TANTO",
+            "TAPAS", "TAPON", "TAREA", "TARRO", "TAXIS", "TAZAS", "TEJER", "TEMAS", "TEMOR", "TENAZ",
+            "TENER", "TERCO", "TEXTO", "TIBIO", "TILDE", "TIMON", "TINTA", "TIRAR", "TOCAR", "TOMAR",
+            "TONOS", "TONTO", "TOPOS", "TORPE", "TOSER", "TOTAL", "TRAER", "TRAGO", "TRAMA", "TRAMO",
+            "TRATO", "TROPA", "TROZO", "TRUCO", "TUBOS", "TUMBA", "TURNO", "UNICO", "UNIDO", "UNION",
+            "UNTAR", "USADO", "USUAL", "VACIO", "VAGOS", "VAINA", "VALLA", "VALOR", "VAPOR", "VECES",
+            "VEJEZ", "VELOZ", "VENAS", "VENDA", "VENIR", "VENTA", "VERBO", "VERSO", "VIDAS", "VIEJO",
+            "VIGOR", "VILLA", "VISTA", "VIUDA", "VIVIR", "VIVOS", "VOCAL", "VOLAR", "VOTAR", "YERBA",
+            "YERNO", "ZONAS", "ZURDA", "ZURDO"
+        ]);
+
+        const SECRET_SET = new Set(SECRET_WORDS);
+        const VALID_WORDS = new Set([...SECRET_WORDS, ...GUESS_ONLY_WORDS]);
+
+        // Cuántas palabras recientes se recuerdan para no repetirlas
+        const HISTORY_SIZE = Math.max(1, Math.min(100, SECRET_WORDS.length - 1));
 
         const KEY_ROWS = [
             ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
             ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
             ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BORRAR"]
         ];
+        const SPECIAL_KEYS = {
+            ENTER: { text: "ENVIAR", label: "Enviar palabra", className: "wide enter" },
+            BORRAR: { text: "⌫", label: "Borrar letra", className: "wide backspace" }
+        };
         const STATE_RANK = { absent: 1, present: 2, correct: 3 };
+        const STATE_LABEL = { absent: "no está", present: "en otra posición", correct: "correcta" };
+        const STATE_CLASSES = Object.keys(STATE_RANK);
 
         // Convierte vocales con tilde o diéresis a su forma simple (la Ñ se conserva)
         const ACCENTS = { "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "Ü": "U" };
 
+        // Deduplica y descarta (avisando) cualquier palabra mal escrita en las listas
+        function cleanWords(list) {
+            const words = new Set();
+            for (const w of list) {
+                if (WORD_RE.test(w)) words.add(w);
+                else console.warn(`Palabra ignorada (formato inválido): "${w}"`);
+            }
+            return [...words];
+        }
+
+        // ================== Elementos ==================
+        const $ = id => document.getElementById(id);
+        const boardEl = $("board");
+        const keyboardEl = $("keyboard");
+        const toastEl = $("toast");
+        const srStatusEl = $("sr-status");
+        const playsEl = $("plays");
+        const dialogEl = $("result-dialog");
+        const titleEl = $("result-title");
+        const textEl = $("result-text");
+        const pillEl = $("result-word");
+        const countdownEl = $("countdown");
+        const restartBtn = $("restart");
+        const closeTabBtn = $("close-tab");
+        const closeHintEl = $("close-hint");
+
         // ================== Estado ==================
-        let secret, currentRow, currentGuess, gameOver, busy, keyStates, started, countdownTimer;
+        const state = {
+            secret: "",
+            row: 0,
+            guess: "",
+            over: false,
+            busy: false,
+            started: false,
+            keyStates: new Map()
+        };
+        let rowEls = [];
+        let tiles = [];
+        const keyEls = new Map();
+        let countdownTimer;
+        let toastTimer;
 
-        const boardEl = document.getElementById("board");
-        const keyboardEl = document.getElementById("keyboard");
-        const toastEl = document.getElementById("toast");
-        const overlayEl = document.getElementById("overlay");
-        const playsEl = document.getElementById("plays");
-        const countdownEl = document.getElementById("countdown");
-        const restartBtn = document.getElementById("restart");
-        const closeTabBtn = document.getElementById("close-tab");
-        const pillEl = document.getElementById("result-word");
-
-        const tile = (r, c) => document.getElementById(`t-${r}-${c}`);
+        // ================== Almacenamiento ==================
+        // localStorage con respaldo en memoria (modo privado, cookies bloqueadas, etc.)
+        const memory = new Map();
+        const storage = {
+            get(key) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (raw !== null) return JSON.parse(raw);
+                } catch { /* sin acceso o JSON corrupto: se usa la memoria */ }
+                return memory.get(key) ?? null;
+            },
+            set(key, value) {
+                memory.set(key, value);
+                try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* sin almacenamiento */ }
+            },
+            remove(key) {
+                memory.delete(key);
+                try { localStorage.removeItem(key); } catch { /* sin almacenamiento */ }
+            }
+        };
 
         // ================== Límite de partidas (24 h) ==================
         // Se guarda: cada partida jugada ({ t: hora de inicio, w: palabra }) y la partida en curso.
-        let memoryStore = { plays: [], current: null };
-
-        function getStore() {
-            let store = memoryStore;
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) store = JSON.parse(raw);
-            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-
-            if (!store || typeof store !== "object") store = { plays: [], current: null };
+        function loadStore() {
+            const raw = storage.get(STORAGE_KEY);
             const now = Date.now();
-            store.plays = Array.isArray(store.plays)
-                ? store.plays
-                    .map(p => (typeof p === "number" ? { t: p, w: null } : p))
-                    .filter(p => p && typeof p.t === "number" && now - p.t < WINDOW_MS)
+            const plays = Array.isArray(raw?.plays)
+                ? raw.plays.filter(p => typeof p?.t === "number" && p.t <= now && now - p.t < WINDOW_MS)
                 : [];
-            const cur = store.current;
-            if (!cur || !SECRET_WORDS.includes(cur.secret) || !Array.isArray(cur.guesses)) {
-                store.current = null;
-            }
-            return store;
+            const cur = raw?.current;
+            const current = SECRET_SET.has(cur?.secret) && Array.isArray(cur.guesses)
+                ? {
+                    secret: cur.secret,
+                    guesses: cur.guesses.filter(g => VALID_WORDS.has(g)).slice(0, MAX_ATTEMPTS)
+                }
+                : null;
+            return { plays, current };
         }
 
-        function saveStore(store) {
-            memoryStore = store;
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-        }
+        const saveStore = store => storage.set(STORAGE_KEY, store);
 
-        const playsLeft = () =>
-            LIMIT_ENABLED ? Math.max(0, MAX_PLAYS - getStore().plays.length) : Infinity;
+        const playsLeft = (store = loadStore()) =>
+            LIMIT_ENABLED ? Math.max(0, MAX_PLAYS - store.plays.length) : Infinity;
 
         // ================== Elección aleatoria de la palabra ==================
-        let memoryHistory = [];
-
-        function loadHistory() {
-            try {
-                const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
-                if (Array.isArray(h)) return h;
-            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-            return memoryHistory;
-        }
-
-        function saveHistory(history) {
-            memoryHistory = history;
-            try {
-                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-            } catch (e) { /* sin almacenamiento: se usa la memoria */ }
-        }
-
-        function randomInt(n) {
-            if (window.crypto && crypto.getRandomValues) {
-                const buf = new Uint32Array(1);
-                crypto.getRandomValues(buf);
-                return buf[0] % n;
-            }
-            return Math.floor(Math.random() * n);
-        }
+        const randomInt = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 
         // Elige una palabra al azar que no haya salido recientemente
         function pickSecret() {
-            const history = loadHistory();
-            const used = new Set(history);
-            if (LIMIT_ENABLED) getStore().plays.forEach(p => used.add(p.w));
+            const stored = storage.get(HISTORY_KEY);
+            const recent = Array.isArray(stored) ? stored.filter(w => SECRET_SET.has(w)) : [];
+            const used = new Set(recent);
+            if (LIMIT_ENABLED) loadStore().plays.forEach(({ w }) => used.add(w));
 
             let pool = SECRET_WORDS.filter(w => !used.has(w));
-            if (!pool.length) pool = SECRET_WORDS.filter(w => w !== history[history.length - 1]);
-            if (!pool.length) pool = SECRET_WORDS;
+            if (!pool.length) pool = SECRET_WORDS.filter(w => w !== recent.at(-1));
+            if (!pool.length) pool = SECRET_WORDS; // diccionario de una sola palabra
 
             const word = pool[randomInt(pool.length)];
-            saveHistory([...history, word].slice(-HISTORY_SIZE));
+            storage.set(HISTORY_KEY, [...recent, word].slice(-HISTORY_SIZE));
             return word;
         }
 
+        // ================== Utilidades ==================
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
         function formatTime(ms) {
             const total = Math.max(0, Math.ceil(ms / 1000));
-            const h = String(Math.floor(total / 3600)).padStart(2, "0");
-            const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
-            const s = String(total % 60).padStart(2, "0");
-            return `${h}:${m}:${s}`;
+            return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60]
+                .map(n => String(n).padStart(2, "0"))
+                .join(":");
         }
 
-        function updatePlaysInfo() {
-            playsEl.innerHTML = "";
-            if (!LIMIT_ENABLED) {
-                playsEl.textContent = "Modo prueba · partidas ilimitadas";
-                return;
-            }
-            const left = playsLeft();
-            for (let i = 0; i < MAX_PLAYS; i++) {
-                const dot = document.createElement("span");
-                dot.className = "dot" + (i < left ? " on" : "");
-                playsEl.appendChild(dot);
-            }
-            const label = document.createElement("span");
-            label.className = "label";
-            label.textContent = left === 1 ? "1 partida disponible" : `${left} partidas disponibles`;
-            playsEl.appendChild(label);
-        }
-
-        // Actualiza el botón del cuadro final: habilitado o con cuenta regresiva
-        function refreshOverlayButton() {
-            clearInterval(countdownTimer);
-            if (!LIMIT_ENABLED) {
-                countdownEl.textContent = "La próxima partida tendrá otra palabra.";
-                restartBtn.disabled = false;
-                restartBtn.textContent = "Jugar de nuevo";
-                return;
-            }
-            const tick = () => {
-                const store = getStore();
-                if (store.plays.length < MAX_PLAYS) {
-                    clearInterval(countdownTimer);
-                    const left = MAX_PLAYS - store.plays.length;
-                    countdownEl.textContent = left === 1
-                        ? "Te queda 1 partida disponible, con otra palabra."
-                        : `Te quedan ${left} partidas disponibles.`;
-                    restartBtn.disabled = false;
-                    restartBtn.textContent = "Jugar de nuevo";
-                    updatePlaysInfo();
-                    return;
-                }
-                const ms = Math.min(...store.plays.map(p => p.t)) + WINDOW_MS - Date.now();
-                countdownEl.textContent = `Próxima partida en ${formatTime(ms)}`;
-                restartBtn.disabled = true;
-                restartBtn.textContent = "Vuelve más tarde";
-            };
-            tick();
-            countdownTimer = setInterval(tick, 1000);
-        }
-
-        function showLimit() {
-            gameOver = true;
-            document.getElementById("result-title").textContent = "⏳ Límite alcanzado";
-            document.getElementById("result-text").textContent =
-                `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`;
-            pillEl.style.display = "none";
-            refreshOverlayButton();
-            overlayEl.classList.add("show");
-        }
-
-        // ================== Utilidades ==================
-        let toastTimer;
         function showToast(msg, ms = 1500) {
             toastEl.textContent = msg;
             toastEl.classList.add("show");
@@ -825,80 +737,163 @@
             toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
         }
 
+        const announce = msg => { srStatusEl.textContent = msg; };
+
         // Evalúa la palabra gestionando correctamente las letras repetidas
         function evaluate(guess, target) {
             const result = Array(WORD_LENGTH).fill("absent");
-            const remaining = {};
+            const remaining = new Map();
             for (let i = 0; i < WORD_LENGTH; i++) {
                 if (guess[i] === target[i]) result[i] = "correct";
-                else remaining[target[i]] = (remaining[target[i]] || 0) + 1;
+                else remaining.set(target[i], (remaining.get(target[i]) ?? 0) + 1);
             }
             for (let i = 0; i < WORD_LENGTH; i++) {
-                if (result[i] !== "correct" && remaining[guess[i]] > 0) {
+                const count = remaining.get(guess[i]);
+                if (result[i] !== "correct" && count > 0) {
                     result[i] = "present";
-                    remaining[guess[i]]--;
+                    remaining.set(guess[i], count - 1);
                 }
             }
             return result;
         }
 
         // ================== Interfaz ==================
+        // El tablero y el teclado se crean una sola vez; entre partidas solo se limpian.
         function buildBoard() {
-            boardEl.innerHTML = "";
-            for (let r = 0; r < MAX_ATTEMPTS; r++) {
+            rowEls = Array.from({ length: MAX_ATTEMPTS }, () => {
                 const row = document.createElement("div");
                 row.className = "row";
-                row.id = `r-${r}`;
-                for (let c = 0; c < WORD_LENGTH; c++) {
-                    const t = document.createElement("div");
-                    t.className = "tile";
-                    t.id = `t-${r}-${c}`;
-                    row.appendChild(t);
-                }
-                boardEl.appendChild(row);
-            }
+                return row;
+            });
+            tiles = rowEls.map(row => Array.from({ length: WORD_LENGTH }, () => {
+                const t = document.createElement("div");
+                t.className = "tile";
+                row.append(t);
+                return t;
+            }));
+            boardEl.replaceChildren(...rowEls);
         }
 
         function buildKeyboard() {
-            keyboardEl.innerHTML = "";
-            KEY_ROWS.forEach(row => {
+            const rows = KEY_ROWS.map(keys => {
                 const rowDiv = document.createElement("div");
                 rowDiv.className = "kb-row";
-                row.forEach(k => {
+                for (const k of keys) {
                     const btn = document.createElement("button");
-                    btn.className = "key";
-                    if (k === "ENTER" || k === "BORRAR") {
-                        btn.classList.add("wide");
-                        if (k === "ENTER") {
-                            btn.classList.add("enter");
-                            btn.textContent = "ENVIAR";
-                        } else {
-                            btn.textContent = "⌫";
-                        }
+                    btn.type = "button";
+                    btn.dataset.key = k;
+                    const special = SPECIAL_KEYS[k];
+                    if (special) {
+                        btn.className = `key ${special.className}`;
+                        btn.textContent = special.text;
+                        btn.setAttribute("aria-label", special.label);
                     } else {
+                        btn.className = "key";
                         btn.textContent = k;
-                        btn.id = `key-${k}`;
+                        keyEls.set(k, btn);
                     }
-                    btn.addEventListener("click", e => {
-                        e.currentTarget.blur();
-                        handleKey(k);
-                    });
-                    rowDiv.appendChild(btn);
-                });
-                keyboardEl.appendChild(rowDiv);
+                    rowDiv.append(btn);
+                }
+                return rowDiv;
             });
+            keyboardEl.replaceChildren(...rows);
+        }
+
+        function clearUI() {
+            for (const row of tiles) {
+                for (const t of row) {
+                    t.textContent = "";
+                    t.className = "tile";
+                    t.removeAttribute("aria-label");
+                }
+            }
+            for (const btn of keyEls.values()) {
+                btn.classList.remove(...STATE_CLASSES);
+                btn.removeAttribute("aria-label");
+            }
+        }
+
+        function updatePlaysInfo(store) {
+            if (!LIMIT_ENABLED) {
+                playsEl.textContent = "Sí, Lucy, estás en el modo ilimitado.";
+                return;
+            }
+            const left = playsLeft(store);
+            const dots = Array.from({ length: MAX_PLAYS }, (_, i) => {
+                const dot = document.createElement("span");
+                dot.className = i < left ? "dot on" : "dot";
+                dot.setAttribute("aria-hidden", "true");
+                return dot;
+            });
+            const label = document.createElement("span");
+            label.textContent = left === 1 ? "1 partida disponible" : `${left} partidas disponibles`;
+            playsEl.replaceChildren(...dots, label);
+        }
+
+        function setRestartEnabled(enabled) {
+            restartBtn.disabled = !enabled;
+            restartBtn.textContent = enabled ? "Jugar de nuevo" : "Vuelve más tarde";
+        }
+
+        // Actualiza el botón del cuadro final: habilitado o con cuenta regresiva
+        function refreshDialogButton() {
+            clearInterval(countdownTimer);
+            if (!LIMIT_ENABLED) {
+                countdownEl.textContent = "La próxima partida tendrá otra palabra.";
+                setRestartEnabled(true);
+                return;
+            }
+            const store = loadStore();
+            const left = playsLeft(store);
+            if (left > 0) {
+                countdownEl.textContent = left === 1
+                    ? "Te queda 1 partida disponible, con otra palabra."
+                    : `Te quedan ${left} partidas disponibles.`;
+                setRestartEnabled(true);
+                updatePlaysInfo(store);
+                return;
+            }
+            setRestartEnabled(false);
+            const unlockAt = Math.min(...store.plays.map(p => p.t)) + WINDOW_MS;
+            const tick = () => {
+                const ms = unlockAt - Date.now();
+                if (ms <= 0) refreshDialogButton();
+                else countdownEl.textContent = `Próxima partida en ${formatTime(ms)}`;
+            };
+            tick();
+            countdownTimer = setInterval(tick, 1000);
+        }
+
+        function openDialog() {
+            refreshDialogButton();
+            if (!dialogEl.open) dialogEl.showModal();
+        }
+
+        function showResult({ title, text, word = null, won = false }) {
+            titleEl.textContent = title;
+            textEl.textContent = text;
+            pillEl.hidden = !word;
+            if (word) {
+                pillEl.textContent = word;
+                pillEl.className = `word-pill ${won ? "ok" : "ko"}`;
+            }
+            closeHintEl.hidden = true;
+        }
+
+        function showLimit() {
+            state.over = true;
+            showResult({
+                title: "⏳ Límite alcanzado",
+                text: `Ya jugaste tus ${MAX_PLAYS} partidas de las últimas 24 horas.`
+            });
+            openDialog();
         }
 
         // ================== Juego ==================
-        function resetBoard() {
-            currentRow = 0;
-            currentGuess = "";
-            gameOver = false;
-            busy = false;
-            started = false;
-            keyStates = {};
-            buildBoard();
-            buildKeyboard();
+        function resetGame(secret) {
+            Object.assign(state, { secret, row: 0, guess: "", over: false, busy: false, started: false });
+            state.keyStates.clear();
+            clearUI();
         }
 
         function newGame() {
@@ -906,50 +901,60 @@
                 showLimit();
                 return;
             }
-            clearInterval(countdownTimer);
-            overlayEl.classList.remove("show");
-            secret = pickSecret();
-            resetBoard();
+            if (dialogEl.open) dialogEl.close(); // el evento "close" detiene la cuenta regresiva
+            resetGame(pickSecret());
             updatePlaysInfo();
+        }
+
+        function applyTileState(t, letter, status) {
+            t.classList.add(status);
+            t.setAttribute("aria-label", `${letter}, ${STATE_LABEL[status]}`);
+        }
+
+        // Pinta una fila sin animación (al retomar una partida guardada)
+        function paintRow(row, guess, result) {
+            result.forEach((status, c) => {
+                const t = tiles[row][c];
+                t.textContent = guess[c];
+                applyTileState(t, guess[c], status);
+            });
         }
 
         // Al cargar: retoma la partida en curso, muestra el límite o empieza una nueva
         function init() {
+            buildBoard();
+            buildKeyboard();
+
             if (!LIMIT_ENABLED) {
                 // Modo prueba: se borran las partidas guardadas de pruebas anteriores
-                try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
+                storage.remove(STORAGE_KEY);
                 newGame();
                 return;
             }
 
-            const store = getStore();
+            const store = loadStore();
             saveStore(store);
 
             if (store.current) {
-                resetBoard();
-                secret = store.current.secret;
-                started = true;
-                const guesses = store.current.guesses
-                    .filter(g => typeof g === "string" && g.length === WORD_LENGTH)
-                    .slice(0, MAX_ATTEMPTS);
+                resetGame(store.current.secret);
+                state.started = true;
+                const { guesses } = store.current;
+                const winIndex = guesses.indexOf(state.secret);
+                const played = winIndex === -1 ? guesses : guesses.slice(0, winIndex + 1);
 
-                guesses.forEach(g => {
-                    const result = evaluate(g, secret);
-                    for (let c = 0; c < WORD_LENGTH; c++) {
-                        const t = tile(currentRow, c);
-                        t.textContent = g[c];
-                        t.classList.add(result[c]);
-                    }
+                for (const g of played) {
+                    const result = evaluate(g, state.secret);
+                    paintRow(state.row, g, result);
                     updateKeyboard(g, result);
-                    currentRow++;
-                });
-                updatePlaysInfo();
+                    state.row++;
+                }
+                updatePlaysInfo(store);
 
-                if (guesses[guesses.length - 1] === secret) endGame(true);
-                else if (currentRow >= MAX_ATTEMPTS) endGame(false);
-            } else if (store.plays.length >= MAX_PLAYS) {
-                resetBoard();
-                updatePlaysInfo();
+                if (winIndex !== -1) endGame(true);
+                else if (state.row >= MAX_ATTEMPTS) endGame(false);
+            } else if (playsLeft(store) <= 0) {
+                resetGame("");
+                updatePlaysInfo(store);
                 showLimit();
             } else {
                 newGame();
@@ -957,160 +962,169 @@
         }
 
         function handleKey(key) {
-            if (gameOver || busy) return;
+            if (state.busy) return;
+            // Si el cuadro final se cerró con Esc para ver el tablero, cualquier tecla lo reabre
+            if (state.over) {
+                openDialog();
+                return;
+            }
             if (key === "ENTER") {
                 submitGuess();
             } else if (key === "BORRAR") {
-                currentGuess = currentGuess.slice(0, -1);
+                state.guess = state.guess.slice(0, -1);
                 renderRow();
-            } else if (/^[A-ZÑ]$/.test(key) && currentGuess.length < WORD_LENGTH) {
-                currentGuess += key;
+            } else if (LETTER_RE.test(key) && state.guess.length < WORD_LENGTH) {
+                state.guess += key;
                 renderRow();
             }
         }
 
         function renderRow() {
-            for (let c = 0; c < WORD_LENGTH; c++) {
-                const t = tile(currentRow, c);
-                const letter = currentGuess[c] || "";
+            tiles[state.row].forEach((t, c) => {
+                const letter = state.guess[c] ?? "";
                 if (t.textContent !== letter) {
                     t.textContent = letter;
-                    t.classList.toggle("filled", !!letter);
+                    t.classList.toggle("filled", letter !== "");
                 }
-            }
+            });
         }
 
         function shakeRow() {
-            const row = document.getElementById(`r-${currentRow}`);
+            const row = rowEls[state.row];
             row.classList.remove("shake");
-            void row.offsetWidth;
+            void row.offsetWidth; // fuerza reflow para reiniciar la animación
             row.classList.add("shake");
         }
 
-        function submitGuess() {
-            if (currentGuess.length < WORD_LENGTH) {
-                shakeRow();
-                showToast("Faltan letras");
-                return;
-            }
-            if (!VALID_WORDS.has(currentGuess)) {
-                shakeRow();
-                showToast("No está en la lista de palabras");
-                return;
-            }
+        function rejectGuess(msg) {
+            shakeRow();
+            showToast(msg);
+            announce(msg);
+        }
 
-            // Con límite activo, la partida cuenta desde la primera palabra enviada
-            if (LIMIT_ENABLED) {
-                const store = getStore();
-                if (!started) {
-                    if (store.plays.length >= MAX_PLAYS) {
-                        showLimit();
-                        return;
-                    }
-                    store.plays.push({ t: Date.now(), w: secret });
-                    store.current = { secret, guesses: [] };
-                    started = true;
-                }
-                if (!store.current) store.current = { secret, guesses: [] };
-                store.current.guesses.push(currentGuess);
-                saveStore(store);
-                updatePlaysInfo();
+        // Con límite activo, la partida cuenta desde la primera palabra enviada.
+        // Devuelve false si ya no quedan partidas.
+        function registerGuess(guess) {
+            const store = loadStore();
+            if (!state.started) {
+                if (playsLeft(store) <= 0) return false;
+                store.plays.push({ t: Date.now(), w: state.secret });
+                store.current = { secret: state.secret, guesses: [] };
+                state.started = true;
             }
+            store.current ??= { secret: state.secret, guesses: [] }; // otra pestaña pudo cerrarla
+            store.current.guesses.push(guess);
+            saveStore(store);
+            updatePlaysInfo(store);
+            return true;
+        }
 
-            busy = true;
-            const guess = currentGuess;
-            const row = currentRow;
+        async function revealRow(row, guess, result) {
+            await Promise.all(result.map(async (status, c) => {
+                const t = tiles[row][c];
+                await wait(c * FLIP_STAGGER);
+                t.classList.add("flip");
+                await wait(FLIP_DURATION / 2); // el color cambia con la ficha "de canto"
+                applyTileState(t, guess[c], status);
+                await wait(FLIP_DURATION / 2);
+            }));
+        }
+
+        async function submitGuess() {
+            const { guess, row, secret } = state;
+            if (guess.length < WORD_LENGTH) return rejectGuess("Faltan letras");
+            if (!VALID_WORDS.has(guess)) return rejectGuess("No está en la lista de palabras");
+            if (LIMIT_ENABLED && !registerGuess(guess)) return showLimit();
+
+            state.busy = true;
             const result = evaluate(guess, secret);
+            await revealRow(row, guess, result);
+            announce(result.map((s, c) => `${guess[c]} ${STATE_LABEL[s]}`).join(", "));
 
-            for (let c = 0; c < WORD_LENGTH; c++) {
-                const t = tile(row, c);
-                setTimeout(() => {
-                    t.classList.add("flip");
-                    setTimeout(() => t.classList.add(result[c]), 250);
-                }, c * FLIP_DELAY);
-            }
+            updateKeyboard(guess, result);
+            state.row++;
+            state.guess = "";
+            state.busy = false;
 
-            setTimeout(() => {
-                updateKeyboard(guess, result);
-                currentRow++;
-                currentGuess = "";
-                busy = false;
-
-                if (guess === secret) endGame(true);
-                else if (currentRow >= MAX_ATTEMPTS) endGame(false);
-            }, FLIP_DELAY * (WORD_LENGTH - 1) + 550);
+            if (guess === secret) endGame(true);
+            else if (state.row >= MAX_ATTEMPTS) endGame(false);
         }
 
         function updateKeyboard(guess, result) {
-            for (let i = 0; i < WORD_LENGTH; i++) {
+            result.forEach((status, i) => {
                 const letter = guess[i];
-                const prev = keyStates[letter];
-                if (!prev || STATE_RANK[result[i]] > STATE_RANK[prev]) {
-                    keyStates[letter] = result[i];
-                    const keyEl = document.getElementById(`key-${letter}`);
-                    if (keyEl) {
-                        keyEl.classList.remove("correct", "present", "absent");
-                        keyEl.classList.add(result[i]);
-                    }
-                }
-            }
+                const prev = state.keyStates.get(letter);
+                if (prev && STATE_RANK[status] <= STATE_RANK[prev]) return;
+                state.keyStates.set(letter, status);
+                const keyEl = keyEls.get(letter);
+                if (!keyEl) return;
+                keyEl.classList.remove(...STATE_CLASSES);
+                keyEl.classList.add(status);
+                keyEl.setAttribute("aria-label", `${letter}, ${STATE_LABEL[status]}`);
+            });
         }
 
-        function endGame(won) {
-            gameOver = true;
+        async function endGame(won) {
+            state.over = true;
             if (LIMIT_ENABLED) {
-                const store = getStore();
+                const store = loadStore();
                 store.current = null;
                 saveStore(store);
+                updatePlaysInfo(store);
             }
-            updatePlaysInfo();
-
-            document.getElementById("result-title").textContent = won ? "🎉 ¡Ganaste!" : "😢 Perdiste";
-            document.getElementById("result-text").textContent = won
-                ? `Lo adivinaste en ${currentRow} de ${MAX_ATTEMPTS} intentos.`
-                : "Se acabaron los intentos. La palabra era:";
-            pillEl.textContent = secret;
-            pillEl.className = "word-pill " + (won ? "ok" : "ko");
-            pillEl.style.display = "";
-            refreshOverlayButton();
-            setTimeout(() => overlayEl.classList.add("show"), 400);
+            showResult({
+                title: won ? "🎉 ¡Ganaste!" : "😢 Perdiste",
+                text: won
+                    ? `Lo adivinaste en ${state.row} de ${MAX_ATTEMPTS} intentos.`
+                    : "Se acabaron los intentos. La palabra era:",
+                word: state.secret,
+                won
+            });
+            await wait(RESULT_DELAY);
+            openDialog();
         }
 
-        // Intenta cerrar la pestaña. Los navegadores solo lo permiten en algunos casos
-        // (por ejemplo, si la pestaña se abrió desde un enlace o con window.open).
+        // Intenta cerrar la pestaña. Los navegadores solo lo permiten si la abrió un script
+        // (window.open); si sigue abierta tras un instante, se avisa dentro del cuadro.
         function closeTab() {
             window.close();
-            // Si la pestaña sigue abierta, el navegador bloqueó el cierre
-            setTimeout(() => {
-                clearInterval(countdownTimer);
-                overlayEl.classList.remove("show");
-                showToast("Tu navegador no permite cerrarla automáticamente. Ciérrala manualmente.", 4000);
-            }, 300);
+            setTimeout(() => { closeHintEl.hidden = false; }, 300);
         }
 
-        // ================== Teclado físico ==================
+        function normalizeKey(key) {
+            const upper = key.toUpperCase();
+            return ACCENTS[upper] ?? upper;
+        }
+
+        // ================== Eventos ==================
         document.addEventListener("keydown", e => {
-            if (e.ctrlKey || e.metaKey || e.altKey) return;
-            if (overlayEl.classList.contains("show")) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!restartBtn.disabled) newGame();
-                }
-                return;
-            }
-            if (e.key === "Enter") { e.preventDefault(); handleKey("ENTER"); }
-            else if (e.key === "Backspace") { e.preventDefault(); handleKey("BORRAR"); }
-            else if (e.key.length === 1) {
-                const upper = e.key.toUpperCase();
-                const letter = ACCENTS[upper] || upper;
-                if (/^[A-ZÑ]$/.test(letter)) handleKey(letter);
+            if (e.ctrlKey || e.metaKey || e.altKey || dialogEl.open) return;
+            // Un botón con foco (navegación con Tab) responde de forma nativa
+            if ((e.key === "Enter" || e.key === " ") && e.target.closest?.("button")) return;
+
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleKey("ENTER");
+            } else if (e.key === "Backspace") {
+                e.preventDefault();
+                handleKey("BORRAR");
+            } else if (e.key.length === 1) {
+                const letter = normalizeKey(e.key);
+                if (LETTER_RE.test(letter)) handleKey(letter);
             }
         });
 
-        restartBtn.addEventListener("click", () => {
-            if (!restartBtn.disabled) newGame();
+        // Delegación: un solo listener para todo el teclado en pantalla
+        keyboardEl.addEventListener("click", e => {
+            const btn = e.target.closest("button[data-key]");
+            if (!btn) return;
+            if (e.detail > 0) btn.blur(); // clic con puntero: no dejar el foco en la tecla
+            handleKey(btn.dataset.key);
         });
+
+        restartBtn.addEventListener("click", newGame);
         closeTabBtn.addEventListener("click", closeTab);
+        dialogEl.addEventListener("close", () => clearInterval(countdownTimer));
 
         init();
     </script>
