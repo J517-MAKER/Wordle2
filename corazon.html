@@ -61,7 +61,7 @@
 <script>
   // ===== Parámetros (igual que el original en Python) =====
   const W = 800, H = 800;
-  const SC = 21, OY = 20, DURATION = 10, TICK = 16, ANIM = 42, LIFT = 34, GAP = 7;
+  const SC = 21, OY = 60, DURATION = 10, TICK = 16, ANIM = 42, LIFT = 34, GAP = 7;
   const SIZES = [9, 10, 11, 12];
   const PT = 4 / 3; // puntos de Tk -> píxeles
   const BG = "#060208";
@@ -83,6 +83,12 @@
   const NAME_SIZE = 96;     // px en coordenadas lógicas (800x800)
   const NAME_BOX_W = 250;   // hueco que se deja libre de frases
   const NAME_BOX_H = 70;
+
+  // Mensaje en blanco debajo del corazón
+  const MESSAGE = "Cuando veas este corazón piensa en el código detrás, perdurará y quedará grabado para siempre en internet, para ti Lucía puesto que es una de mis formas de expresar mi interés por ti, te ofrezco mi corazón, juntos contra el mundo, no lo sé, podemos descubrirlo.";
+  const MSG_SIZE = 11;      // mismo tamaño que las frases del corazón
+  const MSG_MAX_W = 720;
+  const MSG_LINE_H = 19;
 
   // ===== Aleatorio con semilla (como random.Random(11)) =====
   function mulberry32(a) {
@@ -355,11 +361,57 @@
       ctx.fillText(p.text, p.mx, p.my);
     }
     drawName();
+    drawMessage();
   }
 
   // ===== "Lucy" en el centro: aparece al terminar y late como corazón =====
   const NAME_IN = 80; // ticks de entrada (~1.3 s)
   let nameT = 0;
+
+  // Parte el mensaje en líneas que quepan en MSG_MAX_W
+  let msgLines = null;
+  function wrapMessage() {
+    ctx.font = fontStr(MSG_SIZE);
+    const lines = [];
+    let line = "";
+    for (const word of MESSAGE.split(" ")) {
+      const test = line ? line + " " + word : word;
+      if (ctx.measureText(test).width > MSG_MAX_W && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  // Aparece línea por línea después de "Lucy"
+  const MSG_DELAY = NAME_IN + 30;
+  const MSG_LINE_IN = 45;
+  function drawMessage() {
+    const t = nameT - MSG_DELAY;
+    if (t <= 0) return;
+    if (!msgLines) msgLines = wrapMessage();
+    // justo debajo de la última fila de frases
+    const top = H / 2 - Math.min(...ORDER.map(p => p.y)) + 36;
+    ctx.save();
+    ctx.font = fontStr(MSG_SIZE);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    msgLines.forEach((line, i) => {
+      const u = clamp((t - i * 25) / MSG_LINE_IN);
+      if (u <= 0) return;
+      const e = 1 - (1 - u) ** 3;
+      ctx.globalAlpha = e;
+      ctx.shadowColor = "rgba(255, 60, 110, 0.35)";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(line, W / 2, top + i * MSG_LINE_H + (1 - e) * 8);
+    });
+    ctx.restore();
+  }
 
   function heartbeat(t) {
     // dos golpes cortos y una pausa, ciclo de ~1.4 s
