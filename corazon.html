@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Para Lucy 💗</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #060208;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+  }
+  canvas { display: block; }
+
+  .back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1.5px solid rgba(255, 90, 130, 0.45);
+    color: #ffd6e0;
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+    z-index: 10;
+  }
+  .back:hover {
+    transform: translateX(-3px);
+    background: rgba(255, 90, 130, 0.15);
+    box-shadow: 0 0 18px rgba(255, 60, 110, 0.45);
+  }
+  .back svg { width: 24px; height: 24px; }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html" title="Volver al juego" aria-label="Volver al juego">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+  </svg>
+</a>
+
+<canvas id="c"></canvas>
+
+<script>
+  // ===== Parámetros (igual que el original en Python) =====
+  const W = 800, H = 800;
+  const SC = 21, OY = 20, DURATION = 10, TICK = 16, ANIM = 42, LIFT = 34, GAP = 7;
+  const SIZES = [9, 10, 11, 12];
+  const PT = 4 / 3; // puntos de Tk -> píxeles
+  const BG = "#060208";
+  const FONT_FAMILY = 'Arial, "Segoe UI", "Noto Sans", sans-serif';
+
+  // "Me encantas" en varios idiomas
+  const PHRASES = [
+    "Me encantas", "I adore you", "Sana bayılıyorum", "Me encantas",
+    "Je t'adore", "Du bezauberst mich", "Ti adoro", "Eu te adoro",
+    "Я тебя обожаю", "너무 좋아", "大好き", "我好喜欢你",
+    "तुम मुझे बहुत पसंद हो", "Σε λατρεύω", "Ik ben gek op jou", "Me encantas",
+    "Jag gillar dig", "Uwielbiam cię", "ฉันชอบเธอมาก", "Anh mê em",
+    "Aku suka kamu", "Я тебе обожнюю",
+  ];
+
+  // Nombre en el centro del corazón
+  const NAME = "Lucy";
+  const NAME_FONT = '"Great Vibes", "Brush Script MT", "Segoe Script", cursive';
+  const NAME_SIZE = 96;     // px en coordenadas lógicas (800x800)
+  const NAME_BOX_W = 250;   // hueco que se deja libre de frases
+  const NAME_BOX_H = 70;
+
+  // ===== Aleatorio con semilla (como random.Random(11)) =====
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(11);
+  const uniform = (a, b) => a + (b - a) * rand();
+  const choice = arr => arr[Math.floor(rand() * arr.length)];
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ===== Canvas =====
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  let k = 1;
+
+  function resize() {
+    const css = Math.min(window.innerWidth, window.innerHeight);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = css + "px";
+    canvas.style.height = css + "px";
+    canvas.width = Math.round(css * dpr);
+    canvas.height = Math.round(css * dpr);
+    k = (css / W) * dpr;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  const fontStr = size => `bold ${(size * PT).toFixed(2)}px ${FONT_FAMILY}`;
+  function measure(text, size) {
+    ctx.font = fontStr(size);
+    return ctx.measureText(text).width;
+  }
+
+  // ===== Utilidades de color =====
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const mix = (a, b, t) => a.map((p, i) => p + (b[i] - p) * t);
+  const dim = (c, t) => c.map(v => v * t);
+  const hx = c => `rgb(${c.map(v => Math.round(clamp(v) * 255)).join(",")})`;
+  const BGC = [1, 3, 5].map(i => parseInt(BG.slice(i, i + 2), 16) / 255);
+  const FLASH = [1.0, 0.78, 0.78];
+
+  // ===== Geometría del corazón =====
+  function heart(a) {
+    const x = 16 * Math.sin(a) ** 3;
+    const y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
+    return [x * SC, y * SC + OY];
+  }
+
+  const POLY = Array.from({ length: 720 }, (_, i) => heart(2 * Math.PI * i / 720));
+  const EDGES = POLY.map((p, i) => [p, POLY[(i + 1) % POLY.length]]);
+  const YMAX = Math.max(...POLY.map(p => p[1]));
+  const YMIN = Math.min(...POLY.map(p => p[1]));
+  const CY = (YMAX + YMIN) / 2;
+
+  function spans(y) {
+    const xs = [];
+    for (const [[x1, y1], [x2, y2]] of EDGES) {
+      if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
+        xs.push(x1 + (y - y1) * (x2 - x1) / (y2 - y1));
+      }
+    }
+    xs.sort((a, b) => a - b);
+    const out = [];
+    for (let i = 0; i + 1 < xs.length; i += 2) out.push([xs[i], xs[i + 1]]);
+    return out;
+  }
+
+  function intersect(A, B) {
+    const out = [];
+    for (const a of A) for (const b of B) {
+      const lo = Math.max(a[0], b[0]), hi = Math.min(a[1], b[1]);
+      if (hi - lo > 14) out.push([lo, hi]);
+    }
+    return out;
+  }
+
+  // Centro visual del corazón (un poco arriba del centro geométrico)
+  const LY = CY + 34;
+
+  // Quita el intervalo [a, b] de cada tramo de una fila
+  function carve(row, a, b) {
+    const out = [];
+    for (const [lo, hi] of row) {
+      if (hi <= a || lo >= b) { out.push([lo, hi]); continue; }
+      if (a - lo > 14) out.push([lo, a]);
+      if (hi - b > 14) out.push([b, hi]);
+    }
+    return out;
+  }
+
+  const mathDist = (x, y) => Math.hypot(x / (16 * SC), (y - CY) / (14.5 * SC));
+
+  let cycleOrder = [], cycleIdx = 0;
+  function nextPhrase() {
+    if (cycleIdx >= cycleOrder.length) {
+      cycleOrder = shuffle(PHRASES.slice());
+      cycleIdx = 0;
+    }
+    return cycleOrder[cycleIdx++];
+  }
+
+  // ===== Construcción de las frases dentro del corazón =====
+  function build() {
+    const rowH = Math.max(...SIZES.map(z => Math.round(z * PT * 1.15))) + 4;
+    const half = rowH / 2;
+    const placed = [];
+
+    let y = YMAX - half;
+    while (y > YMIN + half) {
+      let row = intersect(spans(y + half), spans(y - half));
+      if (Math.abs(y - LY) < NAME_BOX_H / 2 + half) {
+        row = carve(row, -NAME_BOX_W / 2, NAME_BOX_W / 2);
+      }
+
+      for (let [lo, hi] of row) {
+        lo += 4; hi -= 4;
+        let cur = lo + uniform(0, 8);
+        const line = [];
+
+        while (true) {
+          let fit = null;
+          for (let n = 0; n < 10; n++) {
+            const text = nextPhrase();
+            const size = choice(SIZES);
+            const w = measure(text, size);
+            if (cur + w <= hi) { fit = [text, size, w]; break; }
+          }
+          if (!fit) break;
+          const [text, size, w] = fit;
+          line.push([cur + w / 2, text, size, w]);
+          cur += w + GAP;
+        }
+
+        if (!line.length) continue;
+
+        if (line.length > 1) {
+          const last = line[line.length - 1];
+          const left = hi - (last[0] + last[3] / 2);
+          line.forEach((it, i) => { it[0] += left * i / (line.length - 1); });
+        } else {
+          line[0][0] = (lo + hi) / 2;
+        }
+
+        line.forEach(([x, text, size], i) => {
+          const edge = i === 0 || i === line.length - 1;
+          placed.push({ x, y, text, size, edge });
+        });
+      }
+      y -= rowH;
+    }
+
+    const wine = [0.58, 0.0, 0.09], crimson = [0.90, 0.05, 0.14], blood = [0.98, 0.10, 0.16];
+    for (const p of placed) {
+      const rad = Math.min(1, mathDist(p.x, p.y));
+      let base = mix(wine, crimson, 0.25 + 0.75 * rad);
+      base = mix(base, blood, uniform(0, 0.35) + (p.edge ? 0.3 : 0));
+      p.color = base.map(v => Math.min(1, v));
+      p.rad = rad;
+    }
+
+    const TAU = 2 * Math.PI;
+    const ang = p => ((Math.atan2(p.x, p.y - CY) % TAU) + TAU) % TAU;
+    const edges = placed.filter(p => p.edge).sort((a, b) => ang(a) - ang(b));
+    const inner = placed.filter(p => !p.edge);
+    inner.forEach(p => { p.key = -p.rad + uniform(0, 0.08); });
+    inner.sort((a, b) => a.key - b.key);
+    return edges.concat(inner);
+  }
+
+  // ===== Animación =====
+  const ORDER = build();
+  let nextItem = 0;
+  const RATE = ORDER.length / (DURATION * 1000 / TICK);
+  let acc = 0, spawning = true, finished = false;
+  let active = [];
+  const spawned = [];
+
+  function spawn(p) {
+    const cx = W / 2 + p.x, cy = H / 2 - p.y;
+    Object.assign(p, {
+      cx, cy,
+      font: fontStr(p.size),
+      big: fontStr(p.size + 1),
+      f: 0,
+      dx: uniform(-10, 10),
+      shadowC: BG, haloC: BG, mainC: BG,
+      hx: cx, hy: cy, mx: cx, my: cy - LIFT,
+    });
+    spawned.push(p);
+    active.push(p);
+  }
+
+  function animate(p) {
+    p.f += 1;
+    const u = clamp(p.f / ANIM);
+    const e = 1 - (1 - u) ** 3;
+    const c = p.color;
+    const px = p.cx + p.dx * (1 - e);
+    const py = p.cy - (1 - e) * LIFT;
+
+    p.shadowC = hx(mix(BGC, dim(c, 0.30), e));
+    p.haloC = hx(mix(BGC, dim(c, 0.20), e * e));
+    p.hx = px; p.hy = py;
+
+    const flash = 0.75 * Math.sin(Math.PI * clamp((u - 0.55) / 0.45));
+    p.mainC = hx(mix(mix(BGC, c, e ** 1.5), FLASH, flash));
+    p.mx = px; p.my = py;
+
+    if (u >= 1) {
+      p.hx = p.cx; p.hy = p.cy;
+      p.mx = p.cx; p.my = p.cy;
+      p.mainC = hx(c);
+      return false;
+    }
+    return true;
+  }
+
+  function step() {
+    if (spawning) {
+      acc += RATE;
+      while (acc >= 1) {
+        acc -= 1;
+        if (nextItem < ORDER.length) spawn(ORDER[nextItem++]);
+        else { spawning = false; break; }
+      }
+      if (nextItem >= ORDER.length) spawning = false;
+    }
+    active = active.filter(animate);
+    if (!spawning) nameT++;
+    if (!spawning && !active.length && !finished) {
+      finished = true;
+      shimmer();
+    }
+  }
+
+  function shimmer() {
+    const p = choice(spawned);
+    p.mainC = hx(mix(p.color, FLASH, 0.6));
+    setTimeout(() => { p.mainC = hx(p.color); }, 260);
+    setTimeout(shimmer, 140);
+  }
+
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const p of spawned) {
+      ctx.font = p.font;
+      ctx.fillStyle = p.shadowC;
+      ctx.fillText(p.text, p.cx + 2, p.cy + 3);
+      ctx.font = p.big;
+      ctx.fillStyle = p.haloC;
+      ctx.fillText(p.text, p.hx, p.hy);
+      ctx.font = p.font;
+      ctx.fillStyle = p.mainC;
+      ctx.fillText(p.text, p.mx, p.my);
+    }
+    drawName();
+  }
+
+  // ===== "Lucy" en el centro: aparece al terminar y late como corazón =====
+  const NAME_IN = 80; // ticks de entrada (~1.3 s)
+  let nameT = 0;
+
+  function heartbeat(t) {
+    // dos golpes cortos y una pausa, ciclo de ~1.4 s
+    const ph = (t * TICK / 1400) % 1;
+    const bump = (c, w) => Math.exp(-((ph - c) ** 2) / (2 * w * w));
+    return bump(0.10, 0.04) + 0.6 * bump(0.28, 0.045);
+  }
+
+  function drawName() {
+    if (nameT <= 0) return;
+    const u = clamp(nameT / NAME_IN);
+    const e = 1 - (1 - u) ** 3;
+    const beat = u >= 1 ? heartbeat(nameT - NAME_IN) : 0;
+    const scale = (1.25 - 0.25 * e) * (1 + 0.05 * beat);
+    const x = W / 2, y = H / 2 - LY - (1 - e) * 18;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.font = `${NAME_SIZE}px ${NAME_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha = e;
+
+    // resplandor
+    ctx.shadowColor = `rgba(255, 50, 100, ${0.55 + 0.35 * beat})`;
+    ctx.shadowBlur = 26 + 18 * beat;
+    ctx.fillStyle = hx(mix([1, 0.62, 0.72], [1, 0.9, 0.93], 0.5 + 0.5 * beat));
+    ctx.fillText(NAME, 0, 0);
+
+    // segunda pasada nítida
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = hx(mix([1, 0.75, 0.82], [1, 1, 1], 0.35 * beat));
+    ctx.fillText(NAME, 0, 0);
+    ctx.restore();
+  }
+
+  let last = null, timeAcc = 0;
+  function frame(now) {
+    if (last === null) last = now;
+    timeAcc += Math.min(now - last, 250);
+    last = now;
+    while (timeAcc >= TICK) {
+      step();
+      timeAcc -= TICK;
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // Espera la letra cursiva (máx. 1.5 s) y arranca
+  const fontReady = document.fonts && document.fonts.load
+    ? document.fonts.load(`${NAME_SIZE}px "Great Vibes"`).catch(() => {})
+    : Promise.resolve();
+  Promise.race([fontReady, new Promise(r => setTimeout(r, 1500))])
+    .then(() => setTimeout(() => requestAnimationFrame(frame), 200));
+</script>
+</body>
+</html>

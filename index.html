@@ -407,6 +407,39 @@
             color: var(--on-state);
         }
 
+        /* ---------- Botón corazón (debajo de ENVIAR) ---------- */
+        .key.key-spacer {
+            visibility: hidden;
+        }
+
+        .key.heart-key {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            background: linear-gradient(145deg, #ff86ab, #e0245e);
+            color: #fff;
+            box-shadow: 0 0 14px rgba(255, 80, 130, 0.45);
+            animation: latido 1.6s ease-in-out infinite;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .key.heart-key:hover {
+            filter: brightness(1.1);
+        }
+
+        .key.heart-key svg {
+            height: 52%;
+            width: auto;
+        }
+
+        @keyframes latido {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.08); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.05); }
+        }
+
         .key.correct,
         .key.present,
         .key.absent {
@@ -1010,6 +1043,30 @@
                 }
                 return rowDiv;
             });
+
+            // Fila del corazón: copia la última fila con huecos invisibles
+            // para que el corazón quede justo debajo de ENVIAR y mida lo mismo
+            const heartRow = document.createElement("div");
+            heartRow.className = "kb-row heart-row";
+            for (const k of KEY_ROWS[KEY_ROWS.length - 1]) {
+                const special = SPECIAL_KEYS[k];
+                if (k === "ENTER") {
+                    const a = document.createElement("a");
+                    a.href = "corazon.html";
+                    a.className = `key ${special.className} heart-key`;
+                    a.setAttribute("aria-label", "Una sorpresa");
+                    a.title = "Una sorpresa 💗";
+                    a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.4 2.3 4.5 6 4.5c2.2 0 3.6 1.2 4.4 2.4.5.7 1.7.7 2.2 0 .8-1.2 2.2-2.4 4.4-2.4 3.7 0 5.6 3.9 4 7.2C19.5 16.4 12 21 12 21z"/></svg>`;
+                    heartRow.append(a);
+                } else {
+                    const gap = document.createElement("span");
+                    gap.className = special ? `key ${special.className} key-spacer` : "key key-spacer";
+                    gap.setAttribute("aria-hidden", "true");
+                    heartRow.append(gap);
+                }
+            }
+            rows.push(heartRow);
+
             keyboardEl.replaceChildren(...rows);
         }
 
